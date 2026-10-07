@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import './globals.css';
 
 // Pre-defined boilerplates
@@ -128,15 +129,15 @@ export default function Home() {
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <a href="#" style={{ padding: '12px 16px', background: 'rgba(234, 88, 12, 0.1)', color: 'var(--accent-primary)', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
+          <Link href="/" style={{ padding: '12px 16px', background: 'rgba(234, 88, 12, 0.1)', color: 'var(--accent-primary)', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
             New Listing
-          </a>
-          <a href="#" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+          </Link>
+          <Link href="/inventory" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
             Inventory DB
-          </a>
-          <a href="#" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+          </Link>
+          <Link href="/settings" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
             Boilerplate Settings
-          </a>
+          </Link>
         </nav>
 
         {/* Batch Queue Widget */}
