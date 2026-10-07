@@ -23,6 +23,9 @@ export default function Home() {
   const [draftDescription, setDraftDescription] = useState('');
   const [useAiDesc, setUseAiDesc] = useState(true);
 
+  // Session Queue (Temporary before DB is connected)
+  const [sessionListings, setSessionListings] = useState<any[]>([]);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -68,6 +71,53 @@ export default function Home() {
 
   const finalTitle = `[${mngNumber}] ${draftTitle}`;
 
+  const saveToSessionQueue = () => {
+    const newListing = {
+      managementNumber: mngNumber,
+      title: finalTitle,
+      category: draftCategory,
+      description: draftDescription,
+    };
+    
+    setSessionListings([...sessionListings, newListing]);
+    alert("Saved to batch queue!");
+    
+    // Reset for next item
+    setImageUrl(null);
+    setRawAiResult(null);
+    setDraftTitle('');
+    setDraftDescription('');
+  };
+
+  const downloadCSV = () => {
+    if (sessionListings.length === 0) {
+      alert("No items in queue to download.");
+      return;
+    }
+
+    // Standard Yahoo Auctions Bulk CSV headers (simplified for MVP)
+    const headers = ["管理番号", "タイトル", "カテゴリ", "商品説明"];
+    const rows = sessionListings.map(item => [
+      `"${item.managementNumber}"`,
+      `"${item.title.replace(/"/g, '""')}"`, // escape quotes
+      `"${item.category.replace(/"/g, '""')}"`,
+      `"${item.description.replace(/"/g, '""').replace(/\n/g, '\\n')}"` // escape newlines for basic CSV
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    
+    // Add BOM for Japanese Excel compatibility
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `yahoo_batch_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="app-container">
       {/* Sidebar */}
@@ -88,6 +138,22 @@ export default function Home() {
             Boilerplate Settings
           </a>
         </nav>
+
+        {/* Batch Queue Widget */}
+        <div style={{ marginTop: 'auto', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>BATCH EXPORT QUEUE</p>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-primary)', marginBottom: '16px' }}>
+            {sessionListings.length} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>items</span>
+          </div>
+          <button onClick={downloadCSV} className="btn-primary" style={{ width: '100%', fontSize: '13px' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download CSV for Yahoo
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -120,7 +186,7 @@ export default function Home() {
               <div>
                 <img src={imageUrl} alt="Uploaded" style={{ width: '100%', borderRadius: 'var(--radius-sm)', marginBottom: '16px', border: '1px solid var(--border-color)' }} />
                 <button className="btn-secondary" onClick={() => { setImageUrl(null); setRawAiResult(null); }} style={{ width: '100%' }}>
-                  Upload Different Image
+                  Discard Image
                 </button>
               </div>
             )}
@@ -194,8 +260,8 @@ export default function Home() {
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
-                <button className="btn-secondary">Cancel</button>
-                <button className="btn-primary">Save to Kongo-do DB</button>
+                <button className="btn-secondary" onClick={() => { setImageUrl(null); setRawAiResult(null); }}>Discard</button>
+                <button className="btn-primary" onClick={saveToSessionQueue}>Save & Queue for Batch</button>
               </div>
 
             </section>
