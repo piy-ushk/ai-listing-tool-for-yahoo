@@ -70,6 +70,7 @@ Include ALL of the following that are relevant to the product type:
   - A standard buyer caution note — but written as a real experienced seller, not as an image-based inspector.
 
 DO NOT include shipping methods, payment info, or store policies — those are handled separately.
+DO NOT start with any greeting or thank-you phrase (e.g., do NOT write「ご覧いただきありがとうございます」or similar). Go straight into the product details.
 ALL output must be in Japanese only.
 
 ========== OUTPUT FORMAT ==========
