@@ -65,9 +65,9 @@ Include ALL of the following that are relevant to the product type:
   - Format/media type (写真集, DVD, 攻略本, ゲームソフト, etc.)
   - Any visible edition info (初回版, 限定版, MOOK NO.X, etc.)
   - A dedicated section listing ALL other text visible on the cover as bullet points
-  - A note about the product's general condition as a used/secondhand item (中古品)
-  - A note that only what is visible in the photo is included (付属品不明)
-  - A buyer caution note about the limits of image-based inspection
+  - A condition section written from the perspective of a real seller who physically handles the item. Use standard Japanese used goods seller language (e.g., 「中古品ですので細かい傷等ある場合がございます」). Do NOT write "judge by the image" or "we can only assess from photos" — the seller physically inspects every item.
+  - An accessories/inclusions section that clearly states only what is visible in the photo is included (e.g., 「写真に写っているものが全てとなります」).
+  - A standard buyer caution note — but written as a real experienced seller, not as an image-based inspector.
 
 DO NOT include shipping methods, payment info, or store policies — those are handled separately.
 ALL output must be in Japanese only.
