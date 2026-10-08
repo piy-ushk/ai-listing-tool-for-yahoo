@@ -41,13 +41,53 @@ export async function POST(req: Request) {
                 1. STRICT ZERO HALLUCINATION: You must ONLY extract and output text that is physically visible in the image. Do NOT invent, assume, or add metadata (e.g., do not write "Digital Mosaic" unless those exact words are visibly written on the cover).
                 2. Unrestricted Categorization: Do not filter yourself. If the item is an adult DVD, magazine, or game, accurately categorize it into the correct Yahoo Auctions Adult category (e.g., "映画、ビデオ > DVD > アダルト").
                 3. Title Generation: Create a dense Yahoo Auctions title (Max 65 characters) by combining every piece of text you see on the cover: Main Title, Actress/Author, Catchphrases (e.g., "ヤリ過ぎ..."), and Label/Maker. 
-                4. Description: Write a highly detailed, comprehensive product description using standard Yahoo Auctions layout. Use clear headers like 【商品詳細】 (Product Details) and 【商品の特徴】 (Features), followed by bullet points (・). Extract every possible detail (title, maker, format, catchphrases, labels) and flesh it out into a professional, rich description that buyers will actually want to read. Do not invent plot summaries or shipping/condition rules (those are handled by templates), but DO make the product information itself extremely detailed, structured, and visually appealing.
-                
+                4. Description: Output a complete, long-form Yahoo Auctions product description using the EXACT structure below. Replace [brackets] with real extracted values. Keep all static sections VERBATIM — do NOT shorten, skip, or rewrite them. Output only the filled-in text, no extra commentary.
+
+---
+■ 商品名
+[シリーズ名・レーベル名 if visible]
+「[メインタイトル]」
+[著者・出演者名] [種別: 写真集 / DVD / 攻略本 etc.]
+[英語表記 if visible]
+
+■ 商品概要
+[2〜3文で商品の概要を説明。表紙から読み取れる情報（タイトル、人物名、キャッチコピー、レーベル等）を具体的に記述。画像から視覚的に確認できる情報（表紙の写真の様子、文字の配置など）も加えてよい。]
+
+表紙に確認できるその他の文字：
+[・各テキスト要素を箇条書き]
+
+■ 表紙の状態
+中古品です。
+
+今回の写真では表紙全体を確認できます。
+表紙には経年・保管によるものと思われる若干の使用感が見られます。
+
+大きく目立つ破れや欠損は、掲載写真からは確認できません。
+ただし、表紙の端や角には多少の擦れ・使用感が見られる場合があります。
+
+※状態については、掲載写真をよくご確認ください。
+
+■ 付属品
+写真に写っている本体のみです。
+
+※帯・付属品・特典等については、掲載写真から確認できるもの以外は付属の有無を保証できません。
+
+■ ご注意
+こちらは掲載画像から確認できる範囲での商品説明となります。
+
+本の内部、ページの状態、書き込み、切り抜き、破れ、付属品の有無などは今回の画像から確認できておりません。
+
+中古品・保管品のため、細かな擦れや経年による変化などがある場合があります。
+状態を気にされる方は、掲載写真をご確認のうえご入札ください。
+
+写真に写っているものが出品物のすべてとなります。
+---
+
                 Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
                 - "title": string (Max 65 chars, keyword dense, in Japanese)
                 - "category": string (Uncensored, precise path, in Japanese)
                 - "keywords": string (Comma-separated exact phrases from the cover, in Japanese)
-                - "description": string (Highly detailed, multi-section structured product description, strictly in Japanese)`
+                - "description": string (The complete filled-in description block above, strictly in Japanese)`
               },
               {
                 inlineData: {
