@@ -32,15 +32,22 @@ export async function POST(req: Request) {
           {
             parts: [
               {
-                text: `You are an expert product data extractor for Yahoo Auctions (Japan). 
-                Analyze this image (which may be a book cover, DVD cover, or product box).
-                Extract the text visible on the item (OCR). 
-                Return a JSON object with the following fields:
-                - title: A generated listing title (Japanese) combining the main text, maker, etc.
-                - category: A guessed Yahoo Auctions category (Japanese).
-                - keywords: A comma-separated list of 5-7 search keywords (Japanese).
-                - description: A short description of what you found on the cover (Japanese).
-                Ensure the output is strictly valid JSON without markdown wrapping.`
+                text: `You are an elite product appraiser and data extractor for Yahoo Auctions Japan (ヤフオク).
+                Your goal is to achieve 100% accuracy in reading text from the provided image and formatting it perfectly for a listing.
+                
+                Analyze the provided image (book, DVD, game, or product).
+                
+                CRITICAL RULES:
+                1. OCR Accuracy: Transcribe the exact Japanese text visible on the cover. Do not hallucinate names.
+                2. Title Generation: Create a highly searchable Yahoo Auctions title. Include the main title, author/maker, format (DVD/Book), and key selling points (e.g., 初回限定盤, 帯付き if visible).
+                3. Category: Guess the most precise Yahoo Auctions category path (e.g., "本、雑誌 > 文学、小説 > ロマンス" instead of just "本").
+                4. Description: Describe exactly what you see. Mention if a barcode (JAN), obi (帯), or special packaging is visible. Do not make up plot summaries; stick to physical traits.
+                
+                Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
+                - "title": string (Max 65 characters)
+                - "category": string
+                - "keywords": string (Comma-separated, highly relevant search terms)
+                - "description": string (Physical condition and visible text description)`
               },
               {
                 inlineData: {
