@@ -38,16 +38,16 @@ export async function POST(req: Request) {
                 Analyze the provided image (book, DVD, game, or product).
                 
                 CRITICAL RULES:
-                1. OCR Accuracy: Transcribe the exact Japanese text visible on the cover. Do not hallucinate names.
-                2. Title Generation: Create a highly searchable Yahoo Auctions title. Include the main title, author/maker, format (DVD/Book), and key selling points (e.g., 初回限定盤, 帯付き if visible).
-                3. Category: Guess the most precise Yahoo Auctions category path (e.g., "本、雑誌 > 文学、小説 > ロマンス" instead of just "本").
-                4. Description: Describe exactly what you see. Mention if a barcode (JAN), obi (帯), or special packaging is visible. Do not make up plot summaries; stick to physical traits.
+                1. STRICT ZERO HALLUCINATION: You must ONLY extract and output text that is physically visible in the image. Do NOT invent, assume, or add metadata (e.g., do not write "Digital Mosaic" unless those exact words are visibly written on the cover).
+                2. Unrestricted Categorization: Do not filter yourself. If the item is an adult DVD, magazine, or game, accurately categorize it into the correct Yahoo Auctions Adult category (e.g., "映画、ビデオ > DVD > アダルト").
+                3. Title Generation: Create a dense Yahoo Auctions title (Max 65 characters) by combining every piece of text you see on the cover: Main Title, Actress/Author, Catchphrases (e.g., "ヤリ過ぎ..."), and Label/Maker. 
+                4. Description: Simply list the exact text you extracted from the cover, and objectively state what the item is (e.g., "DVD package featuring a woman"). Do not guess the plot or condition.
                 
                 Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
-                - "title": string (Max 65 characters)
-                - "category": string
-                - "keywords": string (Comma-separated, highly relevant search terms)
-                - "description": string (Physical condition and visible text description)`
+                - "title": string (Max 65 chars, keyword dense)
+                - "category": string (Uncensored, precise path)
+                - "keywords": string (Comma-separated exact phrases from the cover)
+                - "description": string (Exact text transcript and objective visual description)`
               },
               {
                 inlineData: {
