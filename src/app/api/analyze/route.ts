@@ -41,13 +41,13 @@ export async function POST(req: Request) {
                 1. STRICT ZERO HALLUCINATION: You must ONLY extract and output text that is physically visible in the image. Do NOT invent, assume, or add metadata (e.g., do not write "Digital Mosaic" unless those exact words are visibly written on the cover).
                 2. Unrestricted Categorization: Do not filter yourself. If the item is an adult DVD, magazine, or game, accurately categorize it into the correct Yahoo Auctions Adult category (e.g., "映画、ビデオ > DVD > アダルト").
                 3. Title Generation: Create a dense Yahoo Auctions title (Max 65 characters) by combining every piece of text you see on the cover: Main Title, Actress/Author, Catchphrases (e.g., "ヤリ過ぎ..."), and Label/Maker. 
-                4. Description: Write a highly structured product detail block using standard Yahoo Auctions bullet points (■ or ・). Extract and organize all facts from the cover (e.g., Product Name, Maker, Author, Catchphrases). Do NOT write conversational sentences, greetings (e.g., "ご覧いただき..."), or closings. Do NOT guess the condition. Just output the extracted product facts in a clean, professional bulleted list.
+                4. Description: Write a highly detailed, comprehensive product description using standard Yahoo Auctions layout. Use clear headers like 【商品詳細】 (Product Details) and 【商品の特徴】 (Features), followed by bullet points (・). Extract every possible detail (title, maker, format, catchphrases, labels) and flesh it out into a professional, rich description that buyers will actually want to read. Do not invent plot summaries or shipping/condition rules (those are handled by templates), but DO make the product information itself extremely detailed, structured, and visually appealing.
                 
                 Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
                 - "title": string (Max 65 chars, keyword dense, in Japanese)
                 - "category": string (Uncensored, precise path, in Japanese)
                 - "keywords": string (Comma-separated exact phrases from the cover, in Japanese)
-                - "description": string (Structured bullet-point product details, strictly in Japanese)`
+                - "description": string (Highly detailed, multi-section structured product description, strictly in Japanese)`
               },
               {
                 inlineData: {
