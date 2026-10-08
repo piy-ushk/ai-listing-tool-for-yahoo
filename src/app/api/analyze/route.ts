@@ -44,10 +44,10 @@ export async function POST(req: Request) {
                 4. Description: Simply list the exact text you extracted from the cover, and objectively state what the item is (e.g., "DVD package featuring a woman"). Do not guess the plot or condition.
                 
                 Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
-                - "title": string (Max 65 chars, keyword dense)
-                - "category": string (Uncensored, precise path)
-                - "keywords": string (Comma-separated exact phrases from the cover)
-                - "description": string (Exact text transcript and objective visual description)`
+                - "title": string (Max 65 chars, keyword dense, in Japanese)
+                - "category": string (Uncensored, precise path, in Japanese)
+                - "keywords": string (Comma-separated exact phrases from the cover, in Japanese)
+                - "description": string (Exact text transcript and objective visual description, strictly in Japanese)`
               },
               {
                 inlineData: {
