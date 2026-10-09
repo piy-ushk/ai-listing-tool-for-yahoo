@@ -39,7 +39,8 @@ export default function Home() {
   const [draftDescription, setDraftDescription] = useState('');
   const [draftPublisher, setDraftPublisher] = useState('');
   const [draftReleaseDate, setDraftReleaseDate] = useState('');
-  const [useAiDesc, setUseAiDesc] = useState(false); // kept for potential future use
+  const [useAiDesc, setUseAiDesc] = useState(true);
+  const [activeBoilerplate, setActiveBoilerplate] = useState('other');
 
   // Session Queue (Temporary before DB is connected)
   const [sessionListings, setSessionListings] = useState<any[]>([]);
@@ -70,11 +71,15 @@ export default function Home() {
         // Populate Draft
         setDraftTitle(data.title || '');
         setDraftCategory(data.category || '');
+        setDraftPublisher(data.publisher || '');
+        setDraftReleaseDate(data.release_date || '');
         
         // Auto-apply the correct boilerplate based on detected product type
         const pType = data.product_type || 'other';
+        setActiveBoilerplate(pType);
         const template = BOILERPLATES[pType] || BOILERPLATES['other'];
-        setDraftDescription(template);
+        const aiText = useAiDesc && data.description ? `\n\n${data.description}` : '';
+        setDraftDescription(template + aiText);
         
       } catch (err) {
         console.error("Error analyzing image", err);
@@ -85,9 +90,12 @@ export default function Home() {
     };
   };
 
-  const applyBoilerplate = (type: string) => {
+  const applyBoilerplate = (type: string, aiToggleOverride?: boolean) => {
+    setActiveBoilerplate(type);
     const template = BOILERPLATES[type] || BOILERPLATES['other'];
-    setDraftDescription(template);
+    const includeAi = aiToggleOverride !== undefined ? aiToggleOverride : useAiDesc;
+    const aiText = includeAi && rawAiResult?.description ? `\n\n${rawAiResult.description}` : '';
+    setDraftDescription(template + aiText);
   };
 
   const finalTitle = mngNumber ? `[${mngNumber}] ${draftTitle}` : draftTitle;
@@ -229,7 +237,14 @@ export default function Home() {
 
               {/* Title & Management Num */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>出品タイトル</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ width: '110px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>管理番号</label>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>出品タイトル</label>
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input 
                     className="input-field" 
@@ -256,19 +271,17 @@ export default function Home() {
                 <input className="input-field" value={draftCategory} onChange={(e) => setDraftCategory(e.target.value)} />
               </div>
 
-              {/* Publisher & Release Date — manual entry (cannot be read from image) */}
+              {/* Publisher & Release Date */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
                     出版社 / メーカー
-                    <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>手動入力</span>
                   </label>
                   <input className="input-field" value={draftPublisher} onChange={(e) => setDraftPublisher(e.target.value)} placeholder="例：双葉社、マドンナ" />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
                     発売日
-                    <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>手動入力</span>
                   </label>
                   <input className="input-field" value={draftReleaseDate} onChange={(e) => setDraftReleaseDate(e.target.value)} placeholder="例：1987/03/20" />
                 </div>
@@ -276,8 +289,8 @@ export default function Home() {
 
               {/* Boilerplate Injection */}
               <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>定型文を挿入（テンプレートを選択）</label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>定型文を挿入</label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('book')}>本・写真集</button>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('dvd')}>DVD</button>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('bluray')}>Blu-ray</button>
@@ -285,6 +298,18 @@ export default function Home() {
                   <button className="btn-secondary" onClick={() => applyBoilerplate('magazine')}>雑誌</button>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('other')}>その他</button>
                 </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={useAiDesc} 
+                    onChange={(e) => {
+                      setUseAiDesc(e.target.checked);
+                      applyBoilerplate(activeBoilerplate, e.target.checked);
+                    }} 
+                    style={{ accentColor: 'var(--accent-primary)' }}
+                  />
+                  AI生成の状態説明を含める
+                </label>
               </div>
 
               {/* Description */}

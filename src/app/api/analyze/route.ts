@@ -40,9 +40,11 @@ PRODUCT TYPES YOU WILL ENCOUNTER: Books, photo books, manga, magazines, DVDs, Bl
 ========== STRICT RULES ==========
 
 RULE 1 — ZERO HALLUCINATION (MOST IMPORTANT):
-You MUST ONLY output information that is physically visible and readable in the image.
-Do NOT guess, infer, or apply "common knowledge" about a product category to fill in missing details.
-SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS:
+You MUST ONLY output information that is physically visible and readable in the image, with TWO EXCEPTIONS:
+Exception 1: You may use your general knowledge to infer the "publisher" (出版社/メーカー) if you are highly confident based on the product.
+Exception 2: You may use your general knowledge to infer the "release_date" (発売日 - format YYYY/MM/DD) if you are highly confident based on the product.
+For all other fields, including the title and description, DO NOT guess, infer, or apply "common knowledge".
+SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS in title/description:
   - Do NOT write「デジタルモザイク」unless those exact characters are printed on the cover.
   - Do NOT write a director's name unless it is visibly printed on the cover.
   - Do NOT write an ISBN, JAN code, or catalog number unless it is clearly readable in the image.
@@ -68,19 +70,23 @@ Construct the most keyword-dense, searchable title possible using ONLY text visi
 Combine: Main Title + Actress/Author Name + Series/Label + Any visible catchphrases.
 Stay strictly under 65 characters.
 
-RULE 4 — PRODUCT TYPE DETECTION:
-Detect the product type so the correct listing template can be auto-applied.
-Return one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other"
-
-DO NOT generate a product description. The description is handled by standard seller templates.
-ALL output must be in Japanese only (except product_type which is English).
+RULE 4 — PRODUCT TYPE & DESCRIPTION GENERATION:
+1. Detect the product_type: "book", "dvd", "bluray", "game", "magazine", "figure", "other".
+2. Generate a highly detailed, professional product description in Japanese.
+   - Use ■ headers for sections (e.g., ■商品詳細, ■カバー記載のテキスト一覧). Use ・bullet points.
+   - List ALL visible text, titles, cast, catchphrases from the cover.
+   - Do NOT include standard condition/shipping boilerplates (e.g., "judge by image", "no claim no return") - the user will append those manually. Just describe the product details.
+ALL output must be in Japanese only (except product_type).
 
 ========== OUTPUT FORMAT ==========
 Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
 - "title": string (Max 65 chars, keyword dense, extracted from cover text, in Japanese)
 - "category": string (Uncensored, precise Yahoo Auctions category path starting with すべて>, in Japanese)
 - "keywords": string (Comma-separated exact text phrases extracted from the cover, in Japanese)
-- "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")`
+- "publisher": string (Publisher/Maker, inferred from knowledge or image. Leave empty string if unknown)
+- "release_date": string (Release Date YYYY/MM/DD, inferred from knowledge. Leave empty string if unknown)
+- "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")
+- "description": string (Full, long-form, structured product description in Japanese using ■ headers and ・bullets)`
               },
               {
                 inlineData: {
