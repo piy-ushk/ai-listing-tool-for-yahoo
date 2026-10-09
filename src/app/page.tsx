@@ -4,6 +4,13 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import './globals.css';
 
+// Generate a random management number e.g. "60925a"
+const generateMngNumber = () => {
+  const num = Math.floor(10000 + Math.random() * 90000);
+  const letter = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+  return `${num}${letter}`;
+};
+
 // Pre-defined boilerplates
 const BOILERPLATES = {
   book: `【商品について】\n中古品ですので細かい傷等ある場合がございますので神経質な方の入札はご遠慮いたします。\n状態は画像をご覧下さい。\n全ページ隅々まで切り抜き等の確認しておりませんのでご了承ください。\n写真に写っているものが全てとなります。`,
@@ -17,8 +24,8 @@ export default function Home() {
   const [rawAiResult, setRawAiResult] = useState<any>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  // Editable Draft State — management number starts empty
-  const [mngNumber, setMngNumber] = useState('');
+  // Editable Draft State — management number auto-generated but editable
+  const [mngNumber, setMngNumber] = useState(generateMngNumber);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftCategory, setDraftCategory] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
@@ -83,11 +90,12 @@ export default function Home() {
     setSessionListings([...sessionListings, newListing]);
     alert("バッチキューに保存しました！");
     
-    // Reset for next item — keep management number as-is for quick consecutive listing
+    // Reset for next item — auto-generate new management number
     setImageUrl(null);
     setRawAiResult(null);
     setDraftTitle('');
     setDraftDescription('');
+    setMngNumber(generateMngNumber());
   };
 
   const downloadCSV = () => {
