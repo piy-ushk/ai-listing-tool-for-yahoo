@@ -33,6 +33,8 @@ export default function Home() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftCategory, setDraftCategory] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
+  const [draftPublisher, setDraftPublisher] = useState('');
+  const [draftReleaseDate, setDraftReleaseDate] = useState('');
   const [useAiDesc, setUseAiDesc] = useState(true);
 
   // Session Queue (Temporary before DB is connected)
@@ -88,6 +90,8 @@ export default function Home() {
       managementNumber: mngNumber,
       title: finalTitle,
       category: draftCategory,
+      publisher: draftPublisher,
+      releaseDate: draftReleaseDate,
       description: draftDescription,
     };
     
@@ -99,6 +103,8 @@ export default function Home() {
     setRawAiResult(null);
     setDraftTitle('');
     setDraftDescription('');
+    setDraftPublisher('');
+    setDraftReleaseDate('');
     setMngNumber(generateMngNumber());
   };
 
@@ -108,11 +114,13 @@ export default function Home() {
       return;
     }
 
-    const headers = ["管理番号", "タイトル", "カテゴリ", "商品説明"];
+    const headers = ["管理番号", "タイトル", "カテゴリ", "出版社/メーカー", "発売日", "商品説明"];
     const rows = sessionListings.map(item => [
       `"${item.managementNumber}"`,
       `"${item.title.replace(/"/g, '""')}"`,
       `"${item.category.replace(/"/g, '""')}"`,
+      `"${(item.publisher || '').replace(/"/g, '""')}"`,
+      `"${(item.releaseDate || '').replace(/"/g, '""')}"`,
       `"${item.description.replace(/"/g, '""').replace(/\n/g, '\\n')}"`
     ]);
 
@@ -239,6 +247,24 @@ export default function Home() {
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>カテゴリ</label>
                 <input className="input-field" value={draftCategory} onChange={(e) => setDraftCategory(e.target.value)} />
+              </div>
+
+              {/* Publisher & Release Date — manual entry (cannot be read from image) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    出版社 / メーカー
+                    <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>手動入力</span>
+                  </label>
+                  <input className="input-field" value={draftPublisher} onChange={(e) => setDraftPublisher(e.target.value)} placeholder="例：双葉社、マドンナ" />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    発売日
+                    <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>手動入力</span>
+                  </label>
+                  <input className="input-field" value={draftReleaseDate} onChange={(e) => setDraftReleaseDate(e.target.value)} placeholder="例：1987/03/20" />
+                </div>
               </div>
 
               {/* Boilerplate Injection */}
