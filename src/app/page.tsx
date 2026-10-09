@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import './globals.css';
 
@@ -24,8 +24,12 @@ export default function Home() {
   const [rawAiResult, setRawAiResult] = useState<any>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  // Editable Draft State — management number auto-generated but editable
-  const [mngNumber, setMngNumber] = useState(generateMngNumber);
+  // Editable Draft State — management number auto-generated on client mount
+  const [mngNumber, setMngNumber] = useState('');
+
+  useEffect(() => {
+    setMngNumber(generateMngNumber());
+  }, []);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftCategory, setDraftCategory] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
