@@ -17,8 +17,8 @@ export default function Home() {
   const [rawAiResult, setRawAiResult] = useState<any>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  // Editable Draft State
-  const [mngNumber, setMngNumber] = useState('60925a');
+  // Editable Draft State — management number starts empty
+  const [mngNumber, setMngNumber] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
   const [draftCategory, setDraftCategory] = useState('');
   const [draftDescription, setDraftDescription] = useState('');
@@ -57,7 +57,7 @@ export default function Home() {
         
       } catch (err) {
         console.error("Error analyzing image", err);
-        alert("Failed to analyze image.");
+        alert("画像の解析に失敗しました。");
       } finally {
         setIsUploading(false);
       }
@@ -70,7 +70,7 @@ export default function Home() {
     setDraftDescription(template + aiText);
   };
 
-  const finalTitle = `[${mngNumber}] ${draftTitle}`;
+  const finalTitle = mngNumber ? `[${mngNumber}] ${draftTitle}` : draftTitle;
 
   const saveToSessionQueue = () => {
     const newListing = {
@@ -81,9 +81,9 @@ export default function Home() {
     };
     
     setSessionListings([...sessionListings, newListing]);
-    alert("Saved to batch queue!");
+    alert("バッチキューに保存しました！");
     
-    // Reset for next item
+    // Reset for next item — keep management number as-is for quick consecutive listing
     setImageUrl(null);
     setRawAiResult(null);
     setDraftTitle('');
@@ -92,17 +92,16 @@ export default function Home() {
 
   const downloadCSV = () => {
     if (sessionListings.length === 0) {
-      alert("No items in queue to download.");
+      alert("ダウンロードするアイテムがありません。");
       return;
     }
 
-    // Standard Yahoo Auctions Bulk CSV headers (simplified for MVP)
     const headers = ["管理番号", "タイトル", "カテゴリ", "商品説明"];
     const rows = sessionListings.map(item => [
       `"${item.managementNumber}"`,
-      `"${item.title.replace(/"/g, '""')}"`, // escape quotes
+      `"${item.title.replace(/"/g, '""')}"`,
       `"${item.category.replace(/"/g, '""')}"`,
-      `"${item.description.replace(/"/g, '""').replace(/\n/g, '\\n')}"` // escape newlines for basic CSV
+      `"${item.description.replace(/"/g, '""').replace(/\n/g, '\\n')}"`
     ]);
 
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
@@ -124,27 +123,27 @@ export default function Home() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div style={{ marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '24px', color: 'var(--accent-primary)' }}>Kongo-do AI</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>Listing DB Platform</p>
+          <h2 style={{ fontSize: '24px', color: 'var(--accent-primary)' }}>金剛洞 AI</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>出品・データ管理プラットフォーム</p>
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <Link href="/" style={{ padding: '12px 16px', background: 'rgba(234, 88, 12, 0.1)', color: 'var(--accent-primary)', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
-            New Listing
+            新規出品
           </Link>
           <Link href="/inventory" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
-            Inventory DB
+            在庫DB
           </Link>
           <Link href="/settings" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
-            Boilerplate Settings
+            定型文設定
           </Link>
         </nav>
 
         {/* Batch Queue Widget */}
         <div style={{ marginTop: 'auto', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>BATCH EXPORT QUEUE</p>
+          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>バッチ出力キュー</p>
           <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-primary)', marginBottom: '16px' }}>
-            {sessionListings.length} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>items</span>
+            {sessionListings.length} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>件</span>
           </div>
           <button onClick={downloadCSV} className="btn-primary" style={{ width: '100%', fontSize: '13px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -152,7 +151,7 @@ export default function Home() {
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            Download CSV for Yahoo
+            ヤフオク用CSV出力
           </button>
         </div>
       </aside>
@@ -160,8 +159,8 @@ export default function Home() {
       {/* Main Content */}
       <main className="main-content">
         <header className="animate-fade-up" style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Create New Listing</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Upload an item to generate data, apply boilerplates, and save to DB.</p>
+          <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>新規出品登録</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>商品画像をアップロードし、AIが生成したデータを確認・編集して保存してください。</p>
         </header>
 
         <div style={{ display: 'grid', gridTemplateColumns: rawAiResult ? '1fr 1.5fr' : '1fr', gap: '24px', alignItems: 'start' }}>
@@ -177,17 +176,17 @@ export default function Home() {
                     <line x1="12" y1="3" x2="12" y2="15"></line>
                   </svg>
                 </div>
-                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>{isUploading ? "AI Processing..." : "Upload Image"}</h3>
+                <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>{isUploading ? "AI解析中..." : "商品画像をアップロード"}</h3>
                 <label className="btn-primary" style={{ marginTop: '16px', cursor: 'pointer', opacity: isUploading ? 0.5 : 1 }}>
-                  {isUploading ? "Reading Text..." : "Select File"}
+                  {isUploading ? "テキスト読み取り中..." : "ファイルを選択"}
                   <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} disabled={isUploading} />
                 </label>
               </>
             ) : (
               <div>
-                <img src={imageUrl} alt="Uploaded" style={{ width: '100%', borderRadius: 'var(--radius-sm)', marginBottom: '16px', border: '1px solid var(--border-color)' }} />
+                <img src={imageUrl} alt="アップロード済み" style={{ width: '100%', borderRadius: 'var(--radius-sm)', marginBottom: '16px', border: '1px solid var(--border-color)' }} />
                 <button className="btn-secondary" onClick={() => { setImageUrl(null); setRawAiResult(null); }} style={{ width: '100%' }}>
-                  Discard Image
+                  画像を削除
                 </button>
               </div>
             )}
@@ -197,20 +196,20 @@ export default function Home() {
           {rawAiResult && (
             <section className="glass-card animate-fade-up delay-100" style={{ padding: '32px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', color: 'var(--accent-primary)' }}>Draft Listing Data</h3>
-                <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '12px' }}>AI Extracted</span>
+                <h3 style={{ fontSize: '20px', color: 'var(--accent-primary)' }}>出品データ（下書き）</h3>
+                <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '12px' }}>AI抽出済み</span>
               </div>
 
               {/* Title & Management Num */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>Listing Title</label>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>出品タイトル</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input 
                     className="input-field" 
                     value={mngNumber} 
                     onChange={(e) => setMngNumber(e.target.value)} 
-                    style={{ width: '100px', fontWeight: 'bold' }} 
-                    placeholder="Mgmt #" 
+                    style={{ width: '110px', fontWeight: 'bold' }} 
+                    placeholder="管理番号" 
                   />
                   <input 
                     className="input-field" 
@@ -220,22 +219,22 @@ export default function Home() {
                   />
                 </div>
                 <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Preview: <strong style={{ color: 'var(--text-primary)' }}>{finalTitle}</strong>
+                  プレビュー：<strong style={{ color: 'var(--text-primary)' }}>{finalTitle}</strong>
                 </div>
               </div>
 
               {/* Category */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>Category</label>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>カテゴリ</label>
                 <input className="input-field" value={draftCategory} onChange={(e) => setDraftCategory(e.target.value)} />
               </div>
 
               {/* Boilerplate Injection */}
               <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>Insert Boilerplate (定型文)</label>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>定型文を挿入</label>
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('book')}>+ Book Template</button>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('dvd')}>+ DVD Template</button>
+                  <button className="btn-secondary" onClick={() => applyBoilerplate('book')}>＋ 本テンプレート</button>
+                  <button className="btn-secondary" onClick={() => applyBoilerplate('dvd')}>＋ DVDテンプレート</button>
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
                   <input 
@@ -244,25 +243,25 @@ export default function Home() {
                     onChange={(e) => setUseAiDesc(e.target.checked)} 
                     style={{ accentColor: 'var(--accent-primary)' }}
                   />
-                  Include AI-generated condition description
+                  AI生成の状態説明を含める
                 </label>
               </div>
 
               {/* Description */}
               <div style={{ marginBottom: '32px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>Final Description</label>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>最終説明文</label>
                 <textarea 
                   className="input-field" 
                   value={draftDescription} 
                   onChange={(e) => setDraftDescription(e.target.value)} 
-                  style={{ height: '180px', resize: 'vertical', lineHeight: '1.5' }} 
+                  style={{ height: '200px', resize: 'vertical', lineHeight: '1.6' }} 
                 />
               </div>
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
-                <button className="btn-secondary" onClick={() => { setImageUrl(null); setRawAiResult(null); }}>Discard</button>
-                <button className="btn-primary" onClick={saveToSessionQueue}>Save & Queue for Batch</button>
+                <button className="btn-secondary" onClick={() => { setImageUrl(null); setRawAiResult(null); }}>破棄</button>
+                <button className="btn-primary" onClick={saveToSessionQueue}>保存してバッチキューへ</button>
               </div>
 
             </section>
