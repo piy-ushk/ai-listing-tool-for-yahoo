@@ -40,9 +40,11 @@ PRODUCT TYPES YOU WILL ENCOUNTER: Books, photo books, manga, magazines, DVDs, Bl
 ========== STRICT RULES ==========
 
 RULE 1 — ZERO HALLUCINATION (MOST IMPORTANT):
-You MUST ONLY output information that is physically visible and readable in the image.
-Do NOT guess, infer, or apply "common knowledge" about a product category to fill in missing details.
-SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS:
+You MUST ONLY output information that is physically visible and readable in the image, with TWO EXCEPTIONS:
+Exception 1: You may use your general knowledge to infer the "publisher" (出版社/メーカー) if you are highly confident based on the product.
+Exception 2: You may use your general knowledge to infer the "release_date" (発売日 - format YYYY/MM/DD) if you are highly confident based on the product.
+For all other fields, including the title and description, DO NOT guess, infer, or apply "common knowledge".
+SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS in title/description:
   - Do NOT write「デジタルモザイク」unless those exact characters are printed on the cover.
   - Do NOT write a director's name unless it is visibly printed on the cover.
   - Do NOT write an ISBN, JAN code, or catalog number unless it is clearly readable in the image.
@@ -68,32 +70,18 @@ Construct the most keyword-dense, searchable title possible using ONLY text visi
 Combine: Main Title + Actress/Author Name + Series/Label + Any visible catchphrases.
 Stay strictly under 65 characters.
 
-RULE 4 — DESCRIPTION FORMAT (CRITICAL):
-Write a long-form, highly detailed, professional product description in Japanese.
-The AI must decide the appropriate sections based on the product type (book, DVD, game, etc.).
-Use ■ headers for each section. Use ・bullet points inside sections.
-The description MUST be detailed and long enough for a real buyer to fully understand the product.
-Include ALL of the following that are relevant to the product type:
-  - Product name, title, series, label/publisher/maker
-  - All people involved (author, photographer, actress, director, illustrator, etc.)
-  - All visible catchphrases, subtitles, and text on the cover
-  - Format/media type (写真集, DVD, 攻略本, ゲームソフト, etc.)
-  - Any visible edition info (初回版, 限定版, MOOK NO.X, etc.)
-  - A dedicated section listing ALL other text visible on the cover as bullet points
-  - A condition section written from the perspective of a real seller who physically handles the item. Use standard Japanese used goods seller language (e.g., 「中古品ですので細かい傷等ある場合がございます」). Do NOT write "judge by the image" or "we can only assess from photos" — the seller physically inspects every item.
-  - An accessories/inclusions section that clearly states only what is visible in the photo is included (e.g., 「写真に写っているものが全てとなります」).
-  - A standard buyer caution note — but written as a real experienced seller, not as an image-based inspector.
-
-DO NOT include shipping methods, payment info, or store policies — those are handled separately.
-DO NOT start with any greeting or thank-you phrase (e.g., do NOT write「ご覧いただきありがとうございます」or similar). Go straight into the product details.
-ALL output must be in Japanese only.
+RULE 4 — PRODUCT TYPE DETECTION:
+Detect the product_type: "book", "dvd", "bluray", "game", "magazine", "figure", "other".
+ALL output must be in Japanese only (except product_type).
 
 ========== OUTPUT FORMAT ==========
 Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
-- "title": string (Max 65 chars, keyword dense, in Japanese)
-- "category": string (Uncensored, precise Yahoo Auctions category path, in Japanese)
-- "keywords": string (Comma-separated exact phrases extracted from the cover, in Japanese)
-- "description": string (Full, long-form, structured description in Japanese using ■ headers and ・bullets)`
+- "title": string (Max 65 chars, keyword dense, extracted from cover text, in Japanese)
+- "category": string (Uncensored, precise Yahoo Auctions category path starting with すべて>, in Japanese)
+- "keywords": string (Comma-separated exact text phrases extracted from the cover, in Japanese)
+- "publisher": string (Publisher/Maker, inferred from knowledge or image. Leave empty string if unknown)
+- "release_date": string (Release Date YYYY/MM/DD, inferred from knowledge. Leave empty string if unknown)
+- "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")`
               },
               {
                 inlineData: {
