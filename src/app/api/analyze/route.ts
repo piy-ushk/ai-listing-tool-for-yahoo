@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Call Gemini Flash Lite API
+    // Call Gemini Flash Lite API (Fastest model to avoid long wait times & 503 errors)
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
@@ -41,8 +41,8 @@ PRODUCT TYPES YOU WILL ENCOUNTER: Books, photo books, manga, magazines, DVDs, Bl
 
 RULE 1 — ZERO HALLUCINATION (MOST IMPORTANT):
 You MUST ONLY output information that is physically visible and readable in the image, with TWO EXCEPTIONS:
-Exception 1: You may use your general knowledge to infer the "publisher" (出版社/メーカー) if you are highly confident based on the product.
-Exception 2: You may use your general knowledge to infer the "release_date" (発売日 - format YYYY/MM/DD) if you are highly confident based on the product.
+Exception 1: You MUST use your extensive general knowledge to infer the "publisher" (出版社/メーカー) if it is not printed on the cover.
+Exception 2: You MUST use your extensive general knowledge to infer the EXACT "release_date" (発売日 - format YYYY/MM/DD) even for obscure items like older games or adult DVDs. Search your memory for the exact product.
 For all other fields, including the title and description, DO NOT guess, infer, or apply "common knowledge".
 SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS in title/description:
   - Do NOT write「デジタルモザイク」unless those exact characters are printed on the cover.
@@ -57,17 +57,26 @@ You MUST use Yahoo Auctions Japan's real category path format, starting with「�
 Use the most specific subcategory possible based on the product type.
 
 REFERENCE EXAMPLES (use these as a guide for format and depth):
-  - Famicom/game strategy book → すべて>本・雑誌>アート、エンターテイメント>ゲーム攻略本>アクション
-  - Adult DVD (married woman) → すべて>その他>アダルト>DVD>人妻>その他
-  - Photo book (female talent) → すべて>本・雑誌>アート、エンターテイメント>写真集>女性タレント
-  - Manga → すべて>本・雑誌>漫画、コミック>青年
-  - Adult magazine → すべて>その他>アダルト>雑誌>その他
-  - Toy/figure → すべて>おもちゃ、ゲーム>フィギュア>その他
+Example 1 (Famicom Game Strategy Book):
+Title: リンクの冒険 必勝攻略法 ファミリーコンピュータ完璧攻略シリーズ 攻略本
+Publisher: 双葉社
+Release Date: 1987/03/20
+Category: すべて>本・雑誌>アート、エンターテイメント>ゲーム攻略本>アクション
+
+Example 2 (Adult DVD):
+Title: インディーズアダルトDVD とっても世話焼きな人妻大家さん / 三浦恵理子
+Publisher: マドンナ
+Release Date: 2014/08/25
+Category: すべて>その他>アダルト>DVD>人妻>その他
+
+Example 3 (Manga):
+Category: すべて>本・雑誌>漫画、コミック>青年
 Match the exact depth and format of these examples for the detected product type.
 
 RULE 3 — TITLE (MAX 65 CHARACTERS):
 Construct the most keyword-dense, searchable title possible using ONLY text visible on the cover.
-Combine: Main Title + Actress/Author Name + Series/Label + Any visible catchphrases.
+FORMAT ORDER: Main Title + Subtitle/Catchphrase + Series/Label + Author/Actress + Generic Keyword (e.g., 攻略本 or DVD).
+CRITICAL: Do NOT put the Series name before the Main Title. The Main Title must come first.
 Stay strictly under 65 characters.
 
 RULE 4 — PRODUCT TYPE DETECTION:
@@ -94,7 +103,13 @@ Return ONLY a strictly valid JSON object (no markdown, no backticks) with these 
         ],
         generationConfig: {
           responseMimeType: "application/json",
-        }
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       })
     });
 
@@ -105,7 +120,13 @@ Return ONLY a strictly valid JSON object (no markdown, no backticks) with these 
     }
 
     const data = await response.json();
-    let resultText = data.candidates[0].content.parts[0].text;
+    let resultText = '';
+    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      resultText = data.candidates[0].content.parts[0].text;
+    } else {
+      console.error("No valid content found in API response", JSON.stringify(data, null, 2));
+      throw new Error('API returned an empty or blocked response. Check safety settings or prompt.');
+    }
     
     // Clean up markdown json blocks just in case
     resultText = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
