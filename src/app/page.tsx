@@ -293,7 +293,7 @@ export default function Home() {
               {/* Boilerplate Injection */}
               <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>定型文を挿入</label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('book')}>本・写真集</button>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('dvd')}>DVD</button>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('bluray')}>Blu-ray</button>
@@ -301,48 +301,50 @@ export default function Home() {
                   <button className="btn-secondary" onClick={() => applyBoilerplate('magazine')}>雑誌</button>
                   <button className="btn-secondary" onClick={() => applyBoilerplate('other')}>その他</button>
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={useAiDesc} 
-                    disabled={isGeneratingDesc}
-                    onChange={async (e) => {
-                      const checked = e.target.checked;
-                      setUseAiDesc(checked);
-                      
-                      if (checked && (!rawAiResult || !rawAiResult.description) && imageUrl) {
-                        setIsGeneratingDesc(true);
-                        try {
-                          const response = await fetch('/api/generate-description', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ imageBase64: imageUrl })
-                          });
-                          const data = await response.json();
-                          
-                          setRawAiResult((prev: any) => ({ ...prev, description: data.description }));
-                          const template = BOILERPLATES[activeBoilerplate] || BOILERPLATES['other'];
-                          setDraftDescription(template + `\n\n${data.description}`);
-                        } catch (err) {
-                          console.error(err);
-                          alert("説明文の生成に失敗しました。");
-                          setUseAiDesc(false);
-                        } finally {
-                          setIsGeneratingDesc(false);
-                        }
-                      } else {
-                        applyBoilerplate(activeBoilerplate, checked);
-                      }
-                    }} 
-                    style={{ accentColor: 'var(--accent-primary)' }}
-                  />
-                  AI生成の状態説明を含める {isGeneratingDesc && <span style={{ color: 'var(--accent-primary)', fontSize: '12px' }}>(生成中...)</span>}
-                </label>
               </div>
 
               {/* Description */}
               <div style={{ marginBottom: '32px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>最終説明文</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>最終説明文</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={useAiDesc} 
+                      disabled={isGeneratingDesc}
+                      onChange={async (e) => {
+                        const checked = e.target.checked;
+                        setUseAiDesc(checked);
+                        
+                        if (checked && (!rawAiResult || !rawAiResult.description) && imageUrl) {
+                          setIsGeneratingDesc(true);
+                          try {
+                            const response = await fetch('/api/generate-description', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ imageBase64: imageUrl })
+                            });
+                            const data = await response.json();
+                            
+                            setRawAiResult((prev: any) => ({ ...prev, description: data.description }));
+                            const template = BOILERPLATES[activeBoilerplate] || BOILERPLATES['other'];
+                            setDraftDescription(template + `\n\n${data.description}`);
+                          } catch (err) {
+                            console.error(err);
+                            alert("説明文の生成に失敗しました。");
+                            setUseAiDesc(false);
+                          } finally {
+                            setIsGeneratingDesc(false);
+                          }
+                        } else {
+                          applyBoilerplate(activeBoilerplate, checked);
+                        }
+                      }} 
+                      style={{ accentColor: 'var(--accent-primary)' }}
+                    />
+                    AI生成の状態説明を含める {isGeneratingDesc && <span style={{ color: 'var(--accent-primary)', fontSize: '12px' }}>(生成中...)</span>}
+                  </label>
+                </div>
                 <textarea 
                   className="input-field" 
                   value={draftDescription} 
