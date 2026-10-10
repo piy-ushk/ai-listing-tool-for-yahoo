@@ -63,11 +63,11 @@ Publisher: 双葉社
 Release Date: 1987/03/20
 Category: すべて>本・雑誌>アート、エンターテイメント>ゲーム攻略本>アクション
 
-Example 2 (Adult DVD):
-Title: インディーズアダルトDVD とっても世話焼きな人妻大家さん / 三浦恵理子
-Publisher: マドンナ
+Example 2 (Movie DVD):
+Title: 映画タイトル スペシャルエディション / 俳優名
+Publisher: 映画配給会社
 Release Date: 2014/08/25
-Category: すべて>その他>アダルト>DVD>人妻>その他
+Category: すべて>映画、ビデオ>DVD>映画>ドラマ
 
 Example 3 (Manga):
 Category: すべて>本・雑誌>漫画、コミック>青年
