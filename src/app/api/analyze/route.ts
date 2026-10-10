@@ -57,12 +57,20 @@ You MUST use Yahoo Auctions Japan's real category path format, starting with「�
 Use the most specific subcategory possible based on the product type.
 
 REFERENCE EXAMPLES (use these as a guide for format and depth):
-  - Famicom/game strategy book → すべて>本・雑誌>アート、エンターテイメント>ゲーム攻略本>アクション
-  - Adult DVD (married woman) → すべて>その他>アダルト>DVD>人妻>その他
-  - Photo book (female talent) → すべて>本・雑誌>アート、エンターテイメント>写真集>女性タレント
-  - Manga → すべて>本・雑誌>漫画、コミック>青年
-  - Adult magazine → すべて>その他>アダルト>雑誌>その他
-  - Toy/figure → すべて>おもちゃ、ゲーム>フィギュア>その他
+Example 1 (Famicom Game Strategy Book):
+Title: リンクの冒険 必勝攻略法 ファミリーコンピュータ完璧攻略シリーズ 攻略本
+Publisher: 双葉社
+Release Date: 1987/03/20
+Category: すべて>本・雑誌>アート、エンターテイメント>ゲーム攻略本>アクション
+
+Example 2 (Adult DVD):
+Title: インディーズアダルトDVD とっても世話焼きな人妻大家さん / 三浦恵理子
+Publisher: マドンナ
+Release Date: 2014/08/25
+Category: すべて>その他>アダルト>DVD>人妻>その他
+
+Example 3 (Manga):
+Category: すべて>本・雑誌>漫画、コミック>青年
 Match the exact depth and format of these examples for the detected product type.
 
 RULE 3 — TITLE (MAX 65 CHARACTERS):
