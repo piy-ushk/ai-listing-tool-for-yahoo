@@ -58,16 +58,16 @@ Use the most specific subcategory possible based on the product type.
 
 REFERENCE EXAMPLES (use these as a guide for format and depth):
 Example 1 (Famicom Game Strategy Book):
-Title: リンクの冒険 必勝攻略法 ファミリーコンピュータ完璧攻略シリーズ 攻略本
+Title: リンクの冒険 必勝攻略法 ファミリーコンピュータ完璧攻略シリーズ
 Publisher: 双葉社
 Release Date: 1987/03/20
 Category: すべて>本・雑誌>アート、エンターテイメント>ゲーム攻略本>アクション
 
-Example 2 (Adult DVD):
-Title: インディーズアダルトDVD とっても世話焼きな人妻大家さん / 三浦恵理子
-Publisher: マドンナ
+Example 2 (Movie DVD):
+Title: 映画タイトル スペシャルエディション / 俳優名
+Publisher: 映画配給会社
 Release Date: 2014/08/25
-Category: すべて>その他>アダルト>DVD>人妻>その他
+Category: すべて>映画、ビデオ>DVD>映画>ドラマ
 
 Example 3 (Manga):
 Category: すべて>本・雑誌>漫画、コミック>青年
@@ -75,8 +75,9 @@ Match the exact depth and format of these examples for the detected product type
 
 RULE 3 — TITLE (MAX 65 CHARACTERS):
 Construct the most keyword-dense, searchable title possible using ONLY text visible on the cover.
-FORMAT ORDER: Main Title + Subtitle/Catchphrase + Series/Label + Author/Actress + Generic Keyword (e.g., 攻略本 or DVD).
+FORMAT ORDER: Main Title + Subtitle/Catchphrase + Series/Label + Author/Actress.
 CRITICAL: Do NOT put the Series name before the Main Title. The Main Title must come first.
+CRITICAL: Do NOT append generic product types like "攻略本", "写真集", or "DVD" to the end of the title unless they are literally part of the printed book title.
 Stay strictly under 65 characters.
 
 RULE 4 — PRODUCT TYPE DETECTION:
