@@ -21,8 +21,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Call Gemini Flash Lite API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`, {
+    // Call Gemini Flash API (Upgraded to 2.0 for better general knowledge retrieval)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,8 +41,8 @@ PRODUCT TYPES YOU WILL ENCOUNTER: Books, photo books, manga, magazines, DVDs, Bl
 
 RULE 1 — ZERO HALLUCINATION (MOST IMPORTANT):
 You MUST ONLY output information that is physically visible and readable in the image, with TWO EXCEPTIONS:
-Exception 1: You may use your general knowledge to infer the "publisher" (出版社/メーカー) if you are highly confident based on the product.
-Exception 2: You may use your general knowledge to infer the "release_date" (発売日 - format YYYY/MM/DD) if you are highly confident based on the product.
+Exception 1: You MUST use your extensive general knowledge to infer the "publisher" (出版社/メーカー) if it is not printed on the cover.
+Exception 2: You MUST use your extensive general knowledge to infer the EXACT "release_date" (発売日 - format YYYY/MM/DD) even for obscure items like older games or adult DVDs. Search your memory for the exact product.
 For all other fields, including the title and description, DO NOT guess, infer, or apply "common knowledge".
 SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS in title/description:
   - Do NOT write「デジタルモザイク」unless those exact characters are printed on the cover.
