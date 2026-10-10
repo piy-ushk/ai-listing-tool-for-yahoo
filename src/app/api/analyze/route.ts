@@ -75,7 +75,8 @@ Match the exact depth and format of these examples for the detected product type
 
 RULE 3 — TITLE (MAX 65 CHARACTERS):
 Construct the most keyword-dense, searchable title possible using ONLY text visible on the cover.
-Combine: Main Title + Actress/Author Name + Series/Label + Any visible catchphrases.
+FORMAT ORDER: Main Title + Subtitle/Catchphrase + Series/Label + Author/Actress + Generic Keyword (e.g., 攻略本 or DVD).
+CRITICAL: Do NOT put the Series name before the Main Title. The Main Title must come first.
 Stay strictly under 65 characters.
 
 RULE 4 — PRODUCT TYPE DETECTION:
