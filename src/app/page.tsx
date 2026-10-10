@@ -39,7 +39,7 @@ export default function Home() {
   const [draftDescription, setDraftDescription] = useState('');
   const [draftPublisher, setDraftPublisher] = useState('');
   const [draftReleaseDate, setDraftReleaseDate] = useState('');
-  const [useAiDesc, setUseAiDesc] = useState(true);
+  const [useAiDesc, setUseAiDesc] = useState(false);
   const [activeBoilerplate, setActiveBoilerplate] = useState('other');
 
   // Session Queue (Temporary before DB is connected)
