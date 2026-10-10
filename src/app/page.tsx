@@ -41,6 +41,7 @@ export default function Home() {
   const [draftReleaseDate, setDraftReleaseDate] = useState('');
   const [useAiDesc, setUseAiDesc] = useState(false);
   const [activeBoilerplate, setActiveBoilerplate] = useState('other');
+  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
   // Session Queue (Temporary before DB is connected)
   const [sessionListings, setSessionListings] = useState<any[]>([]);
@@ -78,8 +79,10 @@ export default function Home() {
         const pType = data.product_type || 'other';
         setActiveBoilerplate(pType);
         const template = BOILERPLATES[pType] || BOILERPLATES['other'];
-        const aiText = useAiDesc && data.description ? `\n\n${data.description}` : '';
-        setDraftDescription(template + aiText);
+        // At this stage, description is never generated yet, so just apply template
+        setDraftDescription(template);
+        // Reset checkbox state
+        setUseAiDesc(false);
         
       } catch (err) {
         console.error("Error analyzing image", err);
@@ -302,13 +305,38 @@ export default function Home() {
                   <input 
                     type="checkbox" 
                     checked={useAiDesc} 
-                    onChange={(e) => {
-                      setUseAiDesc(e.target.checked);
-                      applyBoilerplate(activeBoilerplate, e.target.checked);
+                    disabled={isGeneratingDesc}
+                    onChange={async (e) => {
+                      const checked = e.target.checked;
+                      setUseAiDesc(checked);
+                      
+                      if (checked && (!rawAiResult || !rawAiResult.description) && imageUrl) {
+                        setIsGeneratingDesc(true);
+                        try {
+                          const response = await fetch('/api/generate-description', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageBase64: imageUrl })
+                          });
+                          const data = await response.json();
+                          
+                          setRawAiResult((prev: any) => ({ ...prev, description: data.description }));
+                          const template = BOILERPLATES[activeBoilerplate] || BOILERPLATES['other'];
+                          setDraftDescription(template + `\n\n${data.description}`);
+                        } catch (err) {
+                          console.error(err);
+                          alert("説明文の生成に失敗しました。");
+                          setUseAiDesc(false);
+                        } finally {
+                          setIsGeneratingDesc(false);
+                        }
+                      } else {
+                        applyBoilerplate(activeBoilerplate, checked);
+                      }
                     }} 
                     style={{ accentColor: 'var(--accent-primary)' }}
                   />
-                  AI生成の状態説明を含める
+                  AI生成の状態説明を含める {isGeneratingDesc && <span style={{ color: 'var(--accent-primary)', fontSize: '12px' }}>(生成中...)</span>}
                 </label>
               </div>
 

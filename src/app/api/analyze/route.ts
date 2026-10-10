@@ -70,12 +70,8 @@ Construct the most keyword-dense, searchable title possible using ONLY text visi
 Combine: Main Title + Actress/Author Name + Series/Label + Any visible catchphrases.
 Stay strictly under 65 characters.
 
-RULE 4 — PRODUCT TYPE & DESCRIPTION GENERATION:
-1. Detect the product_type: "book", "dvd", "bluray", "game", "magazine", "figure", "other".
-2. Generate a highly detailed, professional product description in Japanese.
-   - Use ■ headers for sections (e.g., ■商品詳細, ■カバー記載のテキスト一覧). Use ・bullet points.
-   - List ALL visible text, titles, cast, catchphrases from the cover.
-   - Do NOT include standard condition/shipping boilerplates (e.g., "judge by image", "no claim no return") - the user will append those manually. Just describe the product details.
+RULE 4 — PRODUCT TYPE DETECTION:
+Detect the product_type: "book", "dvd", "bluray", "game", "magazine", "figure", "other".
 ALL output must be in Japanese only (except product_type).
 
 ========== OUTPUT FORMAT ==========
@@ -85,8 +81,7 @@ Return ONLY a strictly valid JSON object (no markdown, no backticks) with these 
 - "keywords": string (Comma-separated exact text phrases extracted from the cover, in Japanese)
 - "publisher": string (Publisher/Maker, inferred from knowledge or image. Leave empty string if unknown)
 - "release_date": string (Release Date YYYY/MM/DD, inferred from knowledge. Leave empty string if unknown)
-- "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")
-- "description": string (Full, long-form, structured product description in Japanese using ■ headers and ・bullets)`
+- "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")`
               },
               {
                 inlineData: {
