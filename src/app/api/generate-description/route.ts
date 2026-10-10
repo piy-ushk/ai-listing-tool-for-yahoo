@@ -33,15 +33,16 @@ export async function POST(req: Request) {
 Your task is to analyze the product image and generate a highly detailed, professional product description in Japanese.
 
 ========== STRICT RULES ==========
-1. Start the description exactly with:
-■商品詳細
-ご覧いただきありがとうございます。
+1. DO NOT write a synopsis, story summary, or product feature review. The user does not use product-specific descriptions.
+2. ONLY extract and list special notes visible on the cover (e.g. "Includes map", "Special edition", "Visible scratches on the cover").
+3. Format your output strictly under the header:
+【特記事項】
+・(bullet points of extracted info)
 
-2. Use ■ headers for sections (e.g., ■カバー記載のテキスト一覧). 
-3. Use ・bullet points inside sections.
-4. List ALL visible text, titles, cast, catchphrases from the cover.
-5. DO NOT include standard condition, shipping, or payment boilerplates. Just describe the product details found on the cover.
-6. DO NOT output JSON. Output ONLY the raw Japanese text description. No markdown code blocks.`
+4. If there is absolutely no special text or visible damage on the cover, simply output:
+【特記事項】
+特に目立つ記載や特記事項はありません。
+5. DO NOT output JSON. Output ONLY the raw Japanese text description. No markdown code blocks.`
               },
               {
                 inlineData: {
