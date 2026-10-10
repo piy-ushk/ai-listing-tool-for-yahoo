@@ -94,7 +94,13 @@ Return ONLY a strictly valid JSON object (no markdown, no backticks) with these 
         ],
         generationConfig: {
           responseMimeType: "application/json",
-        }
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       })
     });
 
@@ -105,7 +111,13 @@ Return ONLY a strictly valid JSON object (no markdown, no backticks) with these 
     }
 
     const data = await response.json();
-    let resultText = data.candidates[0].content.parts[0].text;
+    let resultText = '';
+    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      resultText = data.candidates[0].content.parts[0].text;
+    } else {
+      console.error("No valid content found in API response", JSON.stringify(data, null, 2));
+      throw new Error('API returned an empty or blocked response. Check safety settings or prompt.');
+    }
     
     // Clean up markdown json blocks just in case
     resultText = resultText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();

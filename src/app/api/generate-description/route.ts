@@ -54,7 +54,13 @@ Your task is to analyze the product image and generate a highly detailed, profes
         ],
         generationConfig: {
           responseMimeType: "text/plain",
-        }
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       })
     });
 
@@ -65,6 +71,10 @@ Your task is to analyze the product image and generate a highly detailed, profes
     }
 
     const data = await response.json();
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      console.error("No valid content found in API response", JSON.stringify(data, null, 2));
+      throw new Error('API returned an empty or blocked response.');
+    }
     const resultText = data.candidates[0].content.parts[0].text.trim();
 
     return NextResponse.json({ description: resultText });

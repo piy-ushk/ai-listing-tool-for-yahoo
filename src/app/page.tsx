@@ -67,6 +67,9 @@ export default function Home() {
         });
         
         const data = await response.json();
+        if (!response.ok || data.error) {
+          throw new Error(data.error || 'Failed to analyze image');
+        }
         setRawAiResult(data);
         
         // Populate Draft
