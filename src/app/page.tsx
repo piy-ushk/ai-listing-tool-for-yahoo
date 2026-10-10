@@ -172,12 +172,14 @@ export default function Home() {
           <Link href="/" style={{ padding: '12px 16px', background: 'rgba(234, 88, 12, 0.1)', color: 'var(--accent-primary)', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
             新規出品
           </Link>
-          <Link href="/inventory" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+          <div style={{ padding: '12px 16px', color: 'var(--text-muted)', cursor: 'not-allowed', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             在庫DB
-          </Link>
-          <Link href="/settings" style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '10px', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>未実装</span>
+          </div>
+          <div style={{ padding: '12px 16px', color: 'var(--text-muted)', cursor: 'not-allowed', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             定型文設定
-          </Link>
+            <span style={{ fontSize: '10px', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>未実装</span>
+          </div>
         </nav>
 
         {/* Batch Queue Widget */}
@@ -186,7 +188,12 @@ export default function Home() {
           <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-primary)', marginBottom: '16px' }}>
             {sessionListings.length} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>件</span>
           </div>
-          <button onClick={downloadCSV} className="btn-primary" style={{ width: '100%', fontSize: '13px' }}>
+          <button 
+            onClick={downloadCSV} 
+            className="btn-primary" 
+            style={{ width: '100%', fontSize: '13px', opacity: sessionListings.length === 0 ? 0.5 : 1, cursor: sessionListings.length === 0 ? 'not-allowed' : 'pointer' }}
+            disabled={sessionListings.length === 0}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
@@ -204,7 +211,7 @@ export default function Home() {
           <p style={{ color: 'var(--text-secondary)' }}>商品画像をアップロードし、AIが生成したデータを確認・編集して保存してください。</p>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: rawAiResult ? '1fr 1.5fr' : '1fr', gap: '24px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: (rawAiResult || isUploading) ? '1fr 1.5fr' : '1fr', gap: '24px', alignItems: 'start' }}>
           
           {/* Left Column: Upload & Image */}
           <section className="glass-panel animate-fade-up" style={{ padding: '32px', textAlign: 'center', border: '2px dashed var(--border-color)' }}>
@@ -234,7 +241,28 @@ export default function Home() {
           </section>
 
           {/* Right Column: Edit Draft */}
-          {rawAiResult && (
+          {isUploading ? (
+            <section className="glass-card animate-fade-up delay-100" style={{ padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '500px' }}>
+              <style>{`
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                .loading-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+                @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+              `}</style>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite', marginBottom: '24px' }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+              <h3 style={{ color: 'var(--accent-primary)', marginBottom: '12px', fontSize: '20px' }}>AIが商品情報を抽出中...</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '15px', textAlign: 'center', lineHeight: '1.6', marginBottom: '32px' }}>
+                画像からタイトル、カテゴリ、発売日などを<br/>自動で読み取っています。数秒お待ちください。
+              </p>
+              
+              <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="loading-pulse" style={{ height: '40px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)' }}></div>
+                <div className="loading-pulse" style={{ height: '40px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)' }}></div>
+                <div className="loading-pulse" style={{ height: '80px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)' }}></div>
+              </div>
+            </section>
+          ) : rawAiResult && (
             <section className="glass-card animate-fade-up delay-100" style={{ padding: '32px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '20px', color: 'var(--accent-primary)' }}>出品データ（下書き）</h3>
