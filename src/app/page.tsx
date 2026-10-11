@@ -96,6 +96,50 @@ const YAHOO_CATEGORY_GROUPS = [
 
 const ALL_PRESET_CATEGORIES = YAHOO_CATEGORY_GROUPS.flatMap(g => g.options.map(o => o.value));
 
+// Helper: Compress and resize image client-side before sending to serverless function
+// This avoids Vercel's 4.5MB payload limit (413 FUNCTION_PAYLOAD_TOO_LARGE) and speeds up analysis
+const compressImage = (file: File, maxDimension = 1600, quality = 0.85): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressed);
+      };
+      img.onerror = () => {
+        resolve(e.target?.result as string);
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   
@@ -128,47 +172,54 @@ export default function Home() {
     setIsUploading(true);
     setRawAiResult(null);
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async () => {
-      const base64String = reader.result as string;
-      setImageUrl(base64String);
-      
+    try {
+      // Compress image client-side to prevent Vercel 4.5MB limit
+      const compressedBase64 = await compressImage(file);
+      setImageUrl(compressedBase64);
+
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: compressedBase64 })
+      });
+
+      let data: any;
+      const text = await response.text();
       try {
-        const response = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64String })
-        });
-        
-        const data = await response.json();
-        if (!response.ok || data.error) {
-          throw new Error(data.error || 'Failed to analyze image');
+        data = JSON.parse(text);
+      } catch {
+        if (response.status === 413) {
+          throw new Error('画像サイズが大きすぎます（Vercel 4.5MB制限）。');
         }
-        setRawAiResult(data);
-        
-        // Populate Draft
-        setDraftTitle(data.title || '');
-        setDraftCategory(data.category || '');
-        setIsCustomCategory(false);
-        setDraftPublisher(data.publisher || '');
-        
-        // Auto-apply the correct boilerplate based on detected product type
-        const pType = data.product_type || 'other';
-        setActiveBoilerplate(pType);
-        const template = BOILERPLATES[pType] || BOILERPLATES['other'];
-        // At this stage, description is never generated yet, so just apply template
-        setDraftDescription(template);
-        // Reset checkbox state
-        setUseAiDesc(false);
-        
-      } catch (err) {
-        console.error("Error analyzing image", err);
-        alert("画像の解析に失敗しました。");
-      } finally {
-        setIsUploading(false);
+        throw new Error(`サーバーエラー (${response.status})`);
       }
-    };
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `解析に失敗しました (${response.status})`);
+      }
+
+      setRawAiResult(data);
+
+      // Populate Draft
+      setDraftTitle(data.title || '');
+      setDraftCategory(data.category || '');
+      setIsCustomCategory(false);
+      setDraftPublisher(data.publisher || '');
+
+      // Auto-apply the correct boilerplate based on detected product type
+      const pType = data.product_type || 'other';
+      setActiveBoilerplate(pType);
+      const template = BOILERPLATES[pType] || BOILERPLATES['other'];
+      setDraftDescription(template);
+      setUseAiDesc(false);
+
+    } catch (err: any) {
+      console.error("Error analyzing image", err);
+      alert(`画像の解析に失敗しました。\n詳細: ${err.message || '通信エラー'}`);
+    } finally {
+      setIsUploading(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
   const applyBoilerplate = (type: string, aiToggleOverride?: boolean) => {
@@ -493,14 +544,23 @@ export default function Home() {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ imageBase64: imageUrl })
                             });
-                            const data = await response.json();
+                            let data: any;
+                            const text = await response.text();
+                            try {
+                              data = JSON.parse(text);
+                            } catch {
+                              throw new Error(`サーバーエラー (${response.status})`);
+                            }
+                            if (!response.ok || data.error) {
+                              throw new Error(data.error || 'エラーが発生しました');
+                            }
                             
                             setRawAiResult((prev: any) => ({ ...prev, description: data.description }));
                             const template = BOILERPLATES[activeBoilerplate] || BOILERPLATES['other'];
                             setDraftDescription(template + `\n\n${data.description}`);
-                          } catch (err) {
+                          } catch (err: any) {
                             console.error(err);
-                            alert("説明文の生成に失敗しました。");
+                            alert(`説明文の生成に失敗しました。\n詳細: ${err.message || '通信エラー'}`);
                             setUseAiDesc(false);
                           } finally {
                             setIsGeneratingDesc(false);
