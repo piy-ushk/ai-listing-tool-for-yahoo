@@ -21,6 +21,81 @@ const BOILERPLATES: Record<string, string> = {
   other: `【商品の状態】\n中古品ですので細かい傷・スレ等ある場合がございます。神経質な方のご入札はご遠慮ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
 };
 
+// Pre-defined Yahoo Auctions Category Groups for Quick Selection
+const YAHOO_CATEGORY_GROUPS = [
+  {
+    group: "雑誌（コミック誌）",
+    options: [
+      { label: "週刊少年ジャンプ", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年ジャンプ" },
+      { label: "週刊少年サンデー", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年サンデー" },
+      { label: "週刊少年マガジン", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年マガジン" },
+      { label: "週刊少年チャンピオン", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年チャンピオン" },
+      { label: "その他 少年マンガ誌", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>その他" },
+      { label: "青年マンガ誌（ヤンジャン/ヤンマガ等）", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>青年マンガ誌" },
+      { label: "その他 男性コミック誌", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>その他" },
+    ]
+  },
+  {
+    group: "書籍・コミック",
+    options: [
+      { label: "コミック（少年）", value: "すべて>本、雑誌>漫画、コミック>少年" },
+      { label: "コミック（青年）", value: "すべて>本、雑誌>漫画、コミック>青年" },
+      { label: "コミック（少女）", value: "すべて>本、雑誌>漫画、コミック>少女" },
+      { label: "コミック（女性）", value: "すべて>本、雑誌>漫画、コミック>女性" },
+      { label: "ノンフィクション、教養", value: "すべて>本、雑誌>ノンフィクション、教養" },
+      { label: "文学、小説", value: "すべて>本、雑誌>文学、小説" },
+    ]
+  },
+  {
+    group: "ゲーム攻略本・設定資料",
+    options: [
+      { label: "ゲーム攻略本（アクション）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>アクション" },
+      { label: "ゲーム攻略本（ロールプレイング）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>ロールプレイング" },
+      { label: "ゲーム攻略本（シミュレーション）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>シミュレーション" },
+      { label: "ゲーム攻略本（その他）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>その他" },
+      { label: "アニメーション・設定資料", value: "すべて>本、雑誌>アート、エンターテインメント>アニメーション" },
+    ]
+  },
+  {
+    group: "写真集・タレント",
+    options: [
+      { label: "写真集（女性タレント）", value: "すべて>本、雑誌>アート、エンターテインメント>写真集>女性タレント" },
+      { label: "写真集（女性タレント複数人）", value: "すべて>本、雑誌>アート、エンターテインメント>写真集>女性タレント>複数人" },
+      { label: "写真集（男性タレント）", value: "すべて>本、雑誌>アート、エンターテインメント>写真集>男性タレント" },
+      { label: "アイドル・芸能人（雑誌）", value: "すべて>本、雑誌>雑誌>アート、エンターテインメント>アイドル、芸能人" },
+    ]
+  },
+  {
+    group: "映画・映像ソフト (DVD / Blu-ray)",
+    options: [
+      { label: "DVD アニメ（日本）", value: "すべて>映画、ビデオ>DVD>アニメ>日本" },
+      { label: "DVD 映画（ドラマ）", value: "すべて>映画、ビデオ>DVD>映画>ドラマ" },
+      { label: "DVD 映画（アクション、アドベンチャー）", value: "すべて>映画、ビデオ>DVD>映画>アクション、アドベンチャー" },
+      { label: "Blu-ray アニメ（日本）", value: "すべて>映画、ビデオ>ブルーレイ>アニメ>日本" },
+      { label: "Blu-ray 映画（洋画/邦画）", value: "すべて>映画、ビデオ>ブルーレイ>映画" },
+    ]
+  },
+  {
+    group: "ゲーム・ホビー",
+    options: [
+      { label: "ファミコン ソフト", value: "すべて>おもちゃ、ゲーム>ゲーム>テレビゲーム>ファミコン>タイトル" },
+      { label: "スーパーファミコン ソフト", value: "すべて>おもちゃ、ゲーム>ゲーム>テレビゲーム>スーパーファミコン>タイトル" },
+      { label: "ゲーム機本体・周辺機器", value: "すべて>おもちゃ、ゲーム>ゲーム>テレビゲーム>ファミコン>本体、アクセサリー" },
+    ]
+  },
+  {
+    group: "その他・アダルト",
+    options: [
+      { label: "アダルト DVD（人妻）", value: "すべて>その他>アダルト>DVD>人妻>その他" },
+      { label: "アダルト DVD（アイドル、イメージ）", value: "すべて>その他>アダルト>DVD>アイドル、イメージ" },
+      { label: "アダルト DVD（その他）", value: "すべて>その他>アダルト>DVD>その他" },
+      { label: "アダルト 本・雑誌", value: "すべて>その他>アダルト>本、雑誌" },
+    ]
+  }
+];
+
+const ALL_PRESET_CATEGORIES = YAHOO_CATEGORY_GROUPS.flatMap(g => g.options.map(o => o.value));
+
 export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   
@@ -36,9 +111,9 @@ export default function Home() {
   }, []);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftCategory, setDraftCategory] = useState('');
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [draftDescription, setDraftDescription] = useState('');
   const [draftPublisher, setDraftPublisher] = useState('');
-  const [draftReleaseDate, setDraftReleaseDate] = useState('');
   const [useAiDesc, setUseAiDesc] = useState(false);
   const [activeBoilerplate, setActiveBoilerplate] = useState('other');
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
@@ -75,8 +150,8 @@ export default function Home() {
         // Populate Draft
         setDraftTitle(data.title || '');
         setDraftCategory(data.category || '');
+        setIsCustomCategory(false);
         setDraftPublisher(data.publisher || '');
-        setDraftReleaseDate(data.release_date || '');
         
         // Auto-apply the correct boilerplate based on detected product type
         const pType = data.product_type || 'other';
@@ -112,7 +187,6 @@ export default function Home() {
       title: finalTitle,
       category: draftCategory,
       publisher: draftPublisher,
-      releaseDate: draftReleaseDate,
       description: draftDescription,
     };
     
@@ -123,9 +197,10 @@ export default function Home() {
     setImageUrl(null);
     setRawAiResult(null);
     setDraftTitle('');
+    setDraftCategory('');
+    setIsCustomCategory(false);
     setDraftDescription('');
     setDraftPublisher('');
-    setDraftReleaseDate('');
     setMngNumber(generateMngNumber());
   };
 
@@ -135,13 +210,12 @@ export default function Home() {
       return;
     }
 
-    const headers = ["管理番号", "タイトル", "カテゴリ", "出版社/メーカー", "発売日", "商品説明"];
+    const headers = ["管理番号", "タイトル", "カテゴリ", "出版社/メーカー", "商品説明"];
     const rows = sessionListings.map(item => [
       `"${item.managementNumber}"`,
       `"${item.title.replace(/"/g, '""')}"`,
       `"${item.category.replace(/"/g, '""')}"`,
       `"${(item.publisher || '').replace(/"/g, '""')}"`,
-      `"${(item.releaseDate || '').replace(/"/g, '""')}"`,
       `"${item.description.replace(/"/g, '""').replace(/\n/g, '\\n')}"`
     ]);
 
@@ -253,7 +327,7 @@ export default function Home() {
               </svg>
               <h3 style={{ color: 'var(--accent-primary)', marginBottom: '12px', fontSize: '20px' }}>AIが商品情報を抽出中...</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '15px', textAlign: 'center', lineHeight: '1.6', marginBottom: '32px' }}>
-                画像からタイトル、カテゴリ、発売日などを<br/>自動で読み取っています。数秒お待ちください。
+                画像からタイトル、カテゴリなどを<br/>自動で読み取っています。数秒お待ちください。
               </p>
               
               <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -299,26 +373,90 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Category */}
+              {/* Category (Selectable by Default with Manual Toggle) */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>カテゴリ</label>
-                <input className="input-field" value={draftCategory} onChange={(e) => setDraftCategory(e.target.value)} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    カテゴリ
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomCategory(!isCustomCategory)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--accent-primary)',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0
+                    }}
+                  >
+                    {isCustomCategory ? '選択式（リスト）に戻す' : '直接テキスト編集'}
+                  </button>
+                </div>
+
+                {isCustomCategory ? (
+                  <div>
+                    <input
+                      className="input-field"
+                      value={draftCategory}
+                      onChange={(e) => setDraftCategory(e.target.value)}
+                      placeholder="ヤフオクカテゴリパスを入力（例: すべて>本、雑誌>...）"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <select
+                      className="input-field"
+                      value={draftCategory}
+                      onChange={(e) => {
+                        if (e.target.value === '__custom__') {
+                          setIsCustomCategory(true);
+                        } else {
+                          setDraftCategory(e.target.value);
+                        }
+                      }}
+                      style={{ width: '100%', cursor: 'pointer', appearance: 'auto' }}
+                    >
+                      {draftCategory && !ALL_PRESET_CATEGORIES.includes(draftCategory) && (
+                        <option value={draftCategory}>
+                          ✨ [AI推定] {draftCategory}
+                        </option>
+                      )}
+                      <option value="" disabled>-- カテゴリを選択してください --</option>
+                      {YAHOO_CATEGORY_GROUPS.map((group) => (
+                        <optgroup key={group.group} label={group.group} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                          {group.options.map((opt) => (
+                            <option key={opt.value} value={opt.value} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+                              {opt.label} — ({opt.value.replace(/^すべて>/, '')})
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                      <option value="__custom__" style={{ background: 'var(--bg-primary)', color: 'var(--accent-primary)' }}>✏️ 自由入力（手動でテキスト入力）</option>
+                    </select>
+                  </div>
+                )}
+
+                {draftCategory && !isCustomCategory && (
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    選択中: <span style={{ color: 'var(--text-primary)' }}>{draftCategory}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Publisher & Release Date */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
-                    出版社 / メーカー
-                  </label>
-                  <input className="input-field" value={draftPublisher} onChange={(e) => setDraftPublisher(e.target.value)} placeholder="例：双葉社、マドンナ" />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
-                    発売日
-                  </label>
-                  <input className="input-field" value={draftReleaseDate} onChange={(e) => setDraftReleaseDate(e.target.value)} placeholder="例：1987/03/20" />
-                </div>
+              {/* Publisher */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                  出版社 / メーカー
+                </label>
+                <input 
+                  className="input-field" 
+                  value={draftPublisher} 
+                  onChange={(e) => setDraftPublisher(e.target.value)} 
+                  placeholder="例：集英社、双葉社、マドンナ" 
+                />
               </div>
 
               {/* Boilerplate Injection */}
