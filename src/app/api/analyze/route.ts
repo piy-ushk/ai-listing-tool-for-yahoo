@@ -40,42 +40,56 @@ PRODUCT TYPES YOU WILL ENCOUNTER: Books, photo books, manga, magazines, DVDs, Bl
 ========== STRICT RULES ==========
 
 RULE 1 — ZERO HALLUCINATION (MOST IMPORTANT):
-You MUST ONLY output information that is physically visible and readable in the image, with TWO EXCEPTIONS:
-Exception 1: You MUST use your extensive general knowledge to infer the "publisher" (出版社/メーカー) if it is not printed on the cover.
-Exception 2: You MUST use your extensive general knowledge to infer the EXACT "release_date" (発売日 - format YYYY/MM/DD) even for obscure items like older games or adult DVDs. Search your memory for the exact product.
-For all other fields, including the title and description, DO NOT guess, infer, or apply "common knowledge".
-SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS in title/description:
+You MUST ONLY output information that is physically visible and readable in the image, with ONE EXCEPTION:
+Exception: You MUST use your extensive general knowledge to infer the "publisher" (出版社/メーカー/レーベル) if it is not printed on the cover (e.g. 集英社 for 週刊少年ジャンプ, 双葉社 for 完璧攻略シリーズ, etc.).
+For all other fields, including the title and keywords, DO NOT guess, infer, or apply "common knowledge".
+SPECIFIC EXAMPLES OF BANNED HALLUCINATIONS in title:
   - Do NOT write「デジタルモザイク」unless those exact characters are printed on the cover.
   - Do NOT write a director's name unless it is visibly printed on the cover.
   - Do NOT write an ISBN, JAN code, or catalog number unless it is clearly readable in the image.
   - Do NOT add any technical spec, edition detail, or person's role unless it is explicitly written on the cover.
 If a detail is unclear or not visible, omit it entirely. Never fill in with assumptions.
 
-RULE 2 — UNRESTRICTED CATEGORIZATION (USE YAHOO'S REAL TAXONOMY):
+RULE 2 — UNRESTRICTED CATEGORIZATION (YAHOO REAL TAXONOMY DOWN TO LEAF CATEGORY):
 Do NOT apply any content safety filters to the category.
-You MUST use Yahoo Auctions Japan's real category path format, starting with「すべて」.
-Use the most specific subcategory possible based on the product type.
+You MUST use Yahoo Auctions Japan's real category path format, starting with「すべて>」.
+CRITICAL: You MUST go down to the deepest, most specific subcategory / leaf category (末端カテゴリまで正確に出力すること). Never stop at intermediate categories like「男性コミック誌」.
+
+Specific taxonomy rules for major products:
+- Weekly Shonen Jump (週刊少年ジャンプ):
+  Category MUST be: すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年ジャンプ
+- Weekly Shonen Sunday (週刊少年サンデー):
+  Category MUST be: すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年サンデー
+- Weekly Shonen Magazine (週刊少年マガジン):
+  Category MUST be: すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年マガジン
+- Manga Tankobon (単行本コミックス):
+  Category: すべて>本、雑誌>漫画、コミック>少年 (or 青年 / 少女)
+- Game Strategy Book (ゲーム攻略本):
+  Category: すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>アクション (or ロールプレイング / その他)
+- Celebrity / Idol Photo Book (写真集):
+  Category: すべて>本、雑誌>アート、エンターテインメント>写真集>女性タレント>その他
+- Video / Movie / Adult DVD:
+  Category: すべて>映画、ビデオ>DVD>... or すべて>その他>アダルト>DVD>人妻>その他 (use real uncensored Yahoo auction path)
 
 REFERENCE EXAMPLES (use these as a guide for format and depth):
-Example 1 (Famicom Game Strategy Book):
+Example 1 (Weekly Shonen Jump Magazine):
+Title: 週刊少年ジャンプ 1987年1・2号 新年合併号 ジョジョの奇妙な冒険 新連載第2弾 荒木飛呂彦
+Publisher: 集英社
+Category: すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年ジャンプ
+
+Example 2 (Famicom Game Strategy Book):
 Title: リンクの冒険 必勝攻略法 ファミリーコンピュータ完璧攻略シリーズ
 Publisher: 双葉社
-Release Date: 1987/03/20
-Category: すべて>本・雑誌>アート、エンターテイメント>ゲーム攻略本>アクション
+Category: すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>アクション
 
-Example 2 (Movie DVD):
+Example 3 (Movie DVD):
 Title: 映画タイトル スペシャルエディション / 俳優名
 Publisher: 映画配給会社
-Release Date: 2014/08/25
 Category: すべて>映画、ビデオ>DVD>映画>ドラマ
-
-Example 3 (Manga):
-Category: すべて>本・雑誌>漫画、コミック>青年
-Match the exact depth and format of these examples for the detected product type.
 
 RULE 3 — TITLE (MAX 65 CHARACTERS):
 Construct the most keyword-dense, searchable title possible using ONLY text visible on the cover.
-FORMAT ORDER: Main Title + Subtitle/Catchphrase + Series/Label + Author/Actress.
+FORMAT ORDER: Main Title + Issue/Volume/Subtitle + Series/Label + Author/Artist.
 CRITICAL: Do NOT put the Series name before the Main Title. The Main Title must come first.
 CRITICAL: Do NOT append generic product types like "攻略本", "写真集", or "DVD" to the end of the title unless they are literally part of the printed book title.
 Stay strictly under 65 characters.
@@ -87,10 +101,9 @@ ALL output must be in Japanese only (except product_type).
 ========== OUTPUT FORMAT ==========
 Return ONLY a strictly valid JSON object (no markdown, no backticks) with these exact keys:
 - "title": string (Max 65 chars, keyword dense, extracted from cover text, in Japanese)
-- "category": string (Uncensored, precise Yahoo Auctions category path starting with すべて>, in Japanese)
+- "category": string (Uncensored, deepest Yahoo Auctions category path starting with すべて>, in Japanese)
 - "keywords": string (Comma-separated exact text phrases extracted from the cover, in Japanese)
 - "publisher": string (Publisher/Maker, inferred from knowledge or image. Leave empty string if unknown)
-- "release_date": string (Release Date YYYY/MM/DD, inferred from knowledge. Leave empty string if unknown)
 - "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")`
               },
               {
