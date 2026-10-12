@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import './globals.css';
+import CategoryModal from '../components/CategoryModal';
 
 // Generate a random management number e.g. "60925a"
 const generateMngNumber = () => {
@@ -20,81 +21,6 @@ const BOILERPLATES: Record<string, string> = {
   magazine: `【商品の状態】\n中古品ですので細かい傷・ヤケ・スレ等ある場合がございます。神経質な方のご入札はご遠慮ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
   other: `【商品の状態】\n中古品ですので細かい傷・スレ等ある場合がございます。神経質な方のご入札はご遠慮ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
 };
-
-// Pre-defined Yahoo Auctions Category Groups for Quick Selection
-const YAHOO_CATEGORY_GROUPS = [
-  {
-    group: "雑誌（コミック誌）",
-    options: [
-      { label: "週刊少年ジャンプ", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年ジャンプ" },
-      { label: "週刊少年サンデー", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年サンデー" },
-      { label: "週刊少年マガジン", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年マガジン" },
-      { label: "週刊少年チャンピオン", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>少年チャンピオン" },
-      { label: "その他 少年マンガ誌", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>少年マンガ誌>その他" },
-      { label: "青年マンガ誌（ヤンジャン/ヤンマガ等）", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>青年マンガ誌" },
-      { label: "その他 男性コミック誌", value: "すべて>本、雑誌>雑誌>漫画､コミック>男性コミック誌>その他" },
-    ]
-  },
-  {
-    group: "書籍・コミック",
-    options: [
-      { label: "コミック（少年）", value: "すべて>本、雑誌>漫画、コミック>少年" },
-      { label: "コミック（青年）", value: "すべて>本、雑誌>漫画、コミック>青年" },
-      { label: "コミック（少女）", value: "すべて>本、雑誌>漫画、コミック>少女" },
-      { label: "コミック（女性）", value: "すべて>本、雑誌>漫画、コミック>女性" },
-      { label: "ノンフィクション、教養", value: "すべて>本、雑誌>ノンフィクション、教養" },
-      { label: "文学、小説", value: "すべて>本、雑誌>文学、小説" },
-    ]
-  },
-  {
-    group: "ゲーム攻略本・設定資料",
-    options: [
-      { label: "ゲーム攻略本（アクション）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>アクション" },
-      { label: "ゲーム攻略本（ロールプレイング）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>ロールプレイング" },
-      { label: "ゲーム攻略本（シミュレーション）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>シミュレーション" },
-      { label: "ゲーム攻略本（その他）", value: "すべて>本、雑誌>アート、エンターテインメント>ゲーム攻略本>その他" },
-      { label: "アニメーション・設定資料", value: "すべて>本、雑誌>アート、エンターテインメント>アニメーション" },
-    ]
-  },
-  {
-    group: "写真集・タレント",
-    options: [
-      { label: "写真集（女性タレント）", value: "すべて>本、雑誌>アート、エンターテインメント>写真集>女性タレント" },
-      { label: "写真集（女性タレント複数人）", value: "すべて>本、雑誌>アート、エンターテインメント>写真集>女性タレント>複数人" },
-      { label: "写真集（男性タレント）", value: "すべて>本、雑誌>アート、エンターテインメント>写真集>男性タレント" },
-      { label: "アイドル・芸能人（雑誌）", value: "すべて>本、雑誌>雑誌>アート、エンターテインメント>アイドル、芸能人" },
-    ]
-  },
-  {
-    group: "映画・映像ソフト (DVD / Blu-ray)",
-    options: [
-      { label: "DVD アニメ（日本）", value: "すべて>映画、ビデオ>DVD>アニメ>日本" },
-      { label: "DVD 映画（ドラマ）", value: "すべて>映画、ビデオ>DVD>映画>ドラマ" },
-      { label: "DVD 映画（アクション、アドベンチャー）", value: "すべて>映画、ビデオ>DVD>映画>アクション、アドベンチャー" },
-      { label: "Blu-ray アニメ（日本）", value: "すべて>映画、ビデオ>ブルーレイ>アニメ>日本" },
-      { label: "Blu-ray 映画（洋画/邦画）", value: "すべて>映画、ビデオ>ブルーレイ>映画" },
-    ]
-  },
-  {
-    group: "ゲーム・ホビー",
-    options: [
-      { label: "ファミコン ソフト", value: "すべて>おもちゃ、ゲーム>ゲーム>テレビゲーム>ファミコン>タイトル" },
-      { label: "スーパーファミコン ソフト", value: "すべて>おもちゃ、ゲーム>ゲーム>テレビゲーム>スーパーファミコン>タイトル" },
-      { label: "ゲーム機本体・周辺機器", value: "すべて>おもちゃ、ゲーム>ゲーム>テレビゲーム>ファミコン>本体、アクセサリー" },
-    ]
-  },
-  {
-    group: "その他・アダルト",
-    options: [
-      { label: "アダルト DVD（人妻）", value: "すべて>その他>アダルト>DVD>人妻>その他" },
-      { label: "アダルト DVD（アイドル、イメージ）", value: "すべて>その他>アダルト>DVD>アイドル、イメージ" },
-      { label: "アダルト DVD（その他）", value: "すべて>その他>アダルト>DVD>その他" },
-      { label: "アダルト 本・雑誌", value: "すべて>その他>アダルト>本、雑誌" },
-    ]
-  }
-];
-
-const ALL_PRESET_CATEGORIES = YAHOO_CATEGORY_GROUPS.flatMap(g => g.options.map(o => o.value));
 
 // Helper: Compress and resize image client-side before sending to serverless function
 // This avoids Vercel's 4.5MB payload limit (413 FUNCTION_PAYLOAD_TOO_LARGE) and speeds up analysis
@@ -155,6 +81,7 @@ export default function Home() {
   }, []);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftCategory, setDraftCategory] = useState('');
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [draftDescription, setDraftDescription] = useState('');
   const [draftPublisher, setDraftPublisher] = useState('');
@@ -424,26 +351,31 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Category (Selectable by Default with Manual Toggle) */}
+              {/* Category (Hierarchical Selector with Keyword Search) */}
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    カテゴリ
-                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      カテゴリ
+                    </label>
+                    <span style={{ fontSize: '11px', background: 'rgba(234, 88, 12, 0.1)', color: 'var(--accent-primary)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                      ヤフオク階層型選択
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setIsCustomCategory(!isCustomCategory)}
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: 'var(--accent-primary)',
+                      color: 'var(--text-secondary)',
                       fontSize: '12px',
                       cursor: 'pointer',
                       textDecoration: 'underline',
                       padding: 0
                     }}
                   >
-                    {isCustomCategory ? '選択式（リスト）に戻す' : '直接テキスト編集'}
+                    {isCustomCategory ? '階層選択に戻す' : '直接テキスト編集'}
                   </button>
                 </div>
 
@@ -458,39 +390,57 @@ export default function Home() {
                   </div>
                 ) : (
                   <div>
-                    <select
-                      className="input-field"
-                      value={draftCategory}
-                      onChange={(e) => {
-                        if (e.target.value === '__custom__') {
-                          setIsCustomCategory(true);
-                        } else {
-                          setDraftCategory(e.target.value);
-                        }
-                      }}
-                      style={{ width: '100%', cursor: 'pointer', appearance: 'auto' }}
-                    >
-                      {draftCategory && !ALL_PRESET_CATEGORIES.includes(draftCategory) && (
-                        <option value={draftCategory}>
-                          ✨ [AI推定] {draftCategory}
-                        </option>
-                      )}
-                      <option value="" disabled>-- カテゴリを選択してください --</option>
-                      {YAHOO_CATEGORY_GROUPS.map((group) => (
-                        <optgroup key={group.group} label={group.group} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-                          {group.options.map((opt) => (
-                            <option key={opt.value} value={opt.value} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-                              {opt.label} — ({opt.value.replace(/^すべて>/, '')})
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                      <option value="__custom__" style={{ background: 'var(--bg-primary)', color: 'var(--accent-primary)' }}>✏️ 自由入力（手動でテキスト入力）</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                      <div
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          background: 'var(--bg-primary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          minHeight: '44px',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                          <span style={{ fontSize: '16px' }}>📂</span>
+                          <span
+                            style={{
+                              color: draftCategory ? 'var(--text-primary)' : 'var(--text-muted)',
+                              fontWeight: draftCategory ? 600 : 400,
+                              fontSize: '13px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {draftCategory || 'カテゴリ未選択（クリックして階層選択）'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: 600, flexShrink: 0, marginLeft: '8px' }}>
+                          変更 &gt;
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        style={{ whiteSpace: 'nowrap', fontSize: '13px', padding: '10px 16px' }}
+                      >
+                        階層から選択
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {draftCategory && !isCustomCategory && (
+                {draftCategory && (
                   <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     選択中: <span style={{ color: 'var(--text-primary)' }}>{draftCategory}</span>
                   </div>
@@ -544,23 +494,14 @@ export default function Home() {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ imageBase64: imageUrl })
                             });
-                            let data: any;
-                            const text = await response.text();
-                            try {
-                              data = JSON.parse(text);
-                            } catch {
-                              throw new Error(`サーバーエラー (${response.status})`);
-                            }
-                            if (!response.ok || data.error) {
-                              throw new Error(data.error || 'エラーが発生しました');
-                            }
+                            const data = await response.json();
                             
                             setRawAiResult((prev: any) => ({ ...prev, description: data.description }));
                             const template = BOILERPLATES[activeBoilerplate] || BOILERPLATES['other'];
                             setDraftDescription(template + `\n\n${data.description}`);
-                          } catch (err: any) {
+                          } catch (err) {
                             console.error(err);
-                            alert(`説明文の生成に失敗しました。\n詳細: ${err.message || '通信エラー'}`);
+                            alert("説明文の生成に失敗しました。");
                             setUseAiDesc(false);
                           } finally {
                             setIsGeneratingDesc(false);
@@ -592,6 +533,14 @@ export default function Home() {
           )}
         </div>
       </main>
+
+      {/* Hierarchical Category Selection Modal with Keyword Search */}
+      <CategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        currentCategory={draftCategory}
+        onSelectCategory={(newCat) => setDraftCategory(newCat)}
+      />
     </div>
   );
 }
