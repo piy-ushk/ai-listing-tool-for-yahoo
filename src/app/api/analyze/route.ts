@@ -23,18 +23,20 @@ export async function POST(req: Request) {
       });
     }
 
-    // Call Gemini Flash Lite API (Fastest model to avoid long wait times & 503 errors)
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are an elite product listing specialist for Yahoo Auctions Japan (ヤフオク).
+    // Call Gemini API with automatic fallback across models to eliminate 503 "High Demand" errors
+    const CANDIDATE_MODELS = [
+      'gemini-3.5-flash',
+      'gemini-3.6-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-flash-lite-latest'
+    ];
+
+    const requestPayload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: `You are an elite product listing specialist for Yahoo Auctions Japan (ヤフオク).
 Your task is to analyze the product image and generate a highly accurate, detailed, and well-structured auction listing description.
 
 PRODUCT TYPES YOU WILL ENCOUNTER: Books, photo books, manga, magazines, DVDs, Blu-rays, games, toys, figures, and similar used goods.
@@ -107,35 +109,68 @@ Return ONLY a strictly valid JSON object (no markdown, no backticks) with these 
 - "keywords": string (Comma-separated exact text phrases extracted from the cover, in Japanese)
 - "publisher": string (Publisher/Maker, inferred from knowledge or image. Leave empty string if unknown)
 - "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")`
-              },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "")
-                }
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "")
               }
-            ]
-          }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
-      })
-    });
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
+    };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API Error Response:", errorText);
-      throw new Error(`Gemini API Error: ${errorText}`);
+    let data: any = null;
+    let lastErrorText = '';
+
+    for (const model of CANDIDATE_MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestPayload)
+          });
+
+          if (response.ok) {
+            data = await response.json();
+            break;
+          }
+
+          lastErrorText = await response.text();
+          console.warn(`Model ${model} attempt ${attempt + 1} failed (${response.status})`);
+
+          // If 503 temporary spike, wait 1.2s and retry before moving to next model
+          if (response.status === 503 && attempt === 0) {
+            await new Promise(r => setTimeout(r, 1200));
+            continue;
+          }
+          break;
+        } catch (err: any) {
+          lastErrorText = err.message;
+          console.warn(`Model ${model} fetch error: ${err.message}`);
+          break;
+        }
+      }
+      if (data) break;
     }
 
-    const data = await response.json();
+    if (!data) {
+      console.error("All candidate Gemini models failed. Last error:", lastErrorText);
+      throw new Error(`Gemini API Error: ${lastErrorText}`);
+    }
     let resultText = '';
     if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
       resultText = data.candidates[0].content.parts[0].text;

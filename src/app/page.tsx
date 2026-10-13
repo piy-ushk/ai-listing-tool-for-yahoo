@@ -142,7 +142,11 @@ export default function Home() {
 
     } catch (err: any) {
       console.error("Error analyzing image", err);
-      alert(`画像の解析に失敗しました。\n詳細: ${err.message || '通信エラー'}`);
+      let errorMsg = err.message || '通信エラー';
+      if (errorMsg.includes('503') || errorMsg.includes('high demand') || errorMsg.includes('UNAVAILABLE')) {
+        errorMsg = 'AIサーバーが一時的に混雑しています。数秒後に再度お試しください。(503)';
+      }
+      alert(`画像の解析に失敗しました。\n詳細: ${errorMsg}`);
     } finally {
       setIsUploading(false);
       if (e.target) e.target.value = '';
