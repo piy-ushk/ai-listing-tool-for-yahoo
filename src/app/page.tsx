@@ -90,6 +90,7 @@ interface TemplateItem {
   name: string;
   category: string;
   content: string;
+  isDefault?: boolean;
 }
 
 export default function Home() {
@@ -123,7 +124,7 @@ export default function Home() {
 
   // Templates from API
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
-  const [activeTemplateId, setActiveTemplateId] = useState<string>('other');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('tpl_other');
   const [descriptionMode, setDescriptionMode] = useState<'template_only' | 'template_manual' | 'template_ai'>('template_manual');
   const [useAiDesc, setUseAiDesc] = useState(false);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
@@ -143,6 +144,10 @@ export default function Home() {
       .then(data => {
         if (data.templates && data.templates.length > 0) {
           setTemplates(data.templates);
+          setSelectedTemplateId(prev => {
+            const exists = data.templates.some((t: TemplateItem) => t.id === prev);
+            return exists ? prev : data.templates[0].id;
+          });
         }
       })
       .catch(err => console.error("Could not fetch templates", err));
@@ -199,10 +204,17 @@ export default function Home() {
       setDetectedProductType(pType);
 
       // Auto-apply matching template
-      const matchedTpl = templates.find(t => t.category === pType) || templates.find(t => t.category === 'other');
-      const templateContent = matchedTpl ? matchedTpl.content : (INITIAL_BOILERPLATES[pType] || INITIAL_BOILERPLATES['other']);
-      setDraftDescription(templateContent);
-      setActiveTemplateId(pType);
+      const matchedTpl = templates.find(t => t.category === pType && t.isDefault)
+        || templates.find(t => t.category === pType)
+        || templates.find(t => t.category === 'other')
+        || templates[0];
+      if (matchedTpl) {
+        setSelectedTemplateId(matchedTpl.id);
+        setDraftDescription(matchedTpl.content);
+      } else {
+        const templateContent = INITIAL_BOILERPLATES[pType] || INITIAL_BOILERPLATES['other'];
+        setDraftDescription(templateContent);
+      }
       setUseAiDesc(false);
 
     } catch (err: any) {
@@ -254,8 +266,8 @@ export default function Home() {
 
       if (!autoAiAnalyze) {
         if (!draftDescription) {
-          const matchedTpl = templates.find(t => t.category === activeTemplateId);
-          setDraftDescription(matchedTpl ? matchedTpl.content : (INITIAL_BOILERPLATES[activeTemplateId] || INITIAL_BOILERPLATES['other']));
+          const matchedTpl = templates.find(t => t.id === selectedTemplateId) || templates[0];
+          setDraftDescription(matchedTpl ? matchedTpl.content : (INITIAL_BOILERPLATES['other']));
         }
         return;
       }
@@ -269,11 +281,11 @@ export default function Home() {
     }
   };
 
-  const applyTemplate = (categoryKey: string, aiToggleOverride?: boolean) => {
-    setActiveTemplateId(categoryKey);
-    const matched = templates.find(t => t.category === categoryKey);
-    const templateContent = matched ? matched.content : (INITIAL_BOILERPLATES[categoryKey] || INITIAL_BOILERPLATES['other']);
-    const includeAi = aiToggleOverride !== undefined ? aiToggleOverride : useAiDesc;
+  const applyTemplateById = (templateId: string, aiToggleOverride?: boolean) => {
+    setSelectedTemplateId(templateId);
+    const matched = templates.find(t => t.id === templateId);
+    const templateContent = matched ? matched.content : INITIAL_BOILERPLATES['other'];
+    const includeAi = aiToggleOverride !== undefined ? aiToggleOverride : (descriptionMode === 'template_ai');
     const aiText = includeAi && rawAiResult?.description ? `\n\n${rawAiResult.description}` : '';
     setDraftDescription(templateContent + aiText);
   };
@@ -799,13 +811,48 @@ export default function Home() {
                   </Link>
                 </div>
 
+                {/* Quick Select Buttons for ALL templates (including custom ones) */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                  <button type="button" className={`btn-secondary ${activeTemplateId === 'magazine' ? 'active' : ''}`} onClick={() => applyTemplate('magazine')} style={{ fontSize: '12px', padding: '6px 12px' }}>雑誌・週刊誌</button>
-                  <button type="button" className={`btn-secondary ${activeTemplateId === 'book' ? 'active' : ''}`} onClick={() => applyTemplate('book')} style={{ fontSize: '12px', padding: '6px 12px' }}>書籍・単行本</button>
-                  <button type="button" className={`btn-secondary ${activeTemplateId === 'dvd' ? 'active' : ''}`} onClick={() => applyTemplate('dvd')} style={{ fontSize: '12px', padding: '6px 12px' }}>DVD</button>
-                  <button type="button" className={`btn-secondary ${activeTemplateId === 'bluray' ? 'active' : ''}`} onClick={() => applyTemplate('bluray')} style={{ fontSize: '12px', padding: '6px 12px' }}>Blu-ray</button>
-                  <button type="button" className={`btn-secondary ${activeTemplateId === 'game' ? 'active' : ''}`} onClick={() => applyTemplate('game')} style={{ fontSize: '12px', padding: '6px 12px' }}>ゲーム</button>
-                  <button type="button" className={`btn-secondary ${activeTemplateId === 'other' ? 'active' : ''}`} onClick={() => applyTemplate('other')} style={{ fontSize: '12px', padding: '6px 12px' }}>その他・汎用</button>
+                  {templates.map(tpl => {
+                    const isSelected = selectedTemplateId === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => applyTemplateById(tpl.id)}
+                        className="btn-secondary"
+                        style={{
+                          fontSize: '12px',
+                          padding: '6px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          fontWeight: isSelected ? 600 : 400,
+                          background: isSelected ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                          color: isSelected ? '#ffffff' : 'var(--text-primary)',
+                          borderColor: isSelected ? 'var(--accent-primary)' : 'var(--border-color)',
+                          boxShadow: isSelected ? '0 2px 6px rgba(234, 88, 12, 0.25)' : 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {!tpl.isDefault && (
+                          <span style={{
+                            fontSize: '10px',
+                            background: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'rgba(234, 88, 12, 0.12)',
+                            color: isSelected ? '#ffffff' : 'var(--accent-primary)',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            fontWeight: 600
+                          }}>
+                            カスタム
+                          </span>
+                        )}
+                        {tpl.name}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Description Creation Mode */}
@@ -818,7 +865,7 @@ export default function Home() {
                       checked={descriptionMode === 'template_only'} 
                       onChange={() => {
                         setDescriptionMode('template_only');
-                        applyTemplate(activeTemplateId, false);
+                        applyTemplateById(selectedTemplateId, false);
                       }}
                     />
                     定型文のみ
@@ -849,14 +896,14 @@ export default function Home() {
                             });
                             const data = await response.json();
                             setRawAiResult((prev: any) => ({ ...prev, description: data.description }));
-                            applyTemplate(activeTemplateId, true);
+                            applyTemplateById(selectedTemplateId, true);
                           } catch (err) {
                             alert("AI特記事項の生成に失敗しました。");
                           } finally {
                             setIsGeneratingDesc(false);
                           }
                         } else {
-                          applyTemplate(activeTemplateId, true);
+                          applyTemplateById(selectedTemplateId, true);
                         }
                       }}
                     />
