@@ -89,25 +89,23 @@ export default function Home() {
   const [activeBoilerplate, setActiveBoilerplate] = useState('other');
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
+  // Workflow Control: AI Auto-Analysis Toggle & Keep Previous Data Toggle
+  const [autoAiAnalyze, setAutoAiAnalyze] = useState(true);
+  const [keepPreviousData, setKeepPreviousData] = useState(true);
+
   // Session Queue (Temporary before DB is connected)
   const [sessionListings, setSessionListings] = useState<any[]>([]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  // Execute AI analysis on demand
+  const runAiAnalysis = async (base64String: string) => {
     setIsUploading(true);
     setRawAiResult(null);
 
     try {
-      // Compress image client-side to prevent Vercel 4.5MB limit
-      const compressedBase64 = await compressImage(file);
-      setImageUrl(compressedBase64);
-
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: compressedBase64 })
+        body: JSON.stringify({ imageBase64: base64String })
       });
 
       let data: any;
@@ -149,6 +147,33 @@ export default function Home() {
       alert(`画像の解析に失敗しました。\n詳細: ${errorMsg}`);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Compress image client-side to prevent Vercel 4.5MB limit
+      const compressedBase64 = await compressImage(file);
+      setImageUrl(compressedBase64);
+
+      if (!autoAiAnalyze) {
+        // AI is OFF: Do NOT analyze image automatically.
+        // If draft description is empty, set default boilerplate
+        if (!draftDescription) {
+          setDraftDescription(BOILERPLATES[activeBoilerplate] || BOILERPLATES['other']);
+        }
+        return;
+      }
+
+      // AI is ON: Run automatic extraction
+      await runAiAnalysis(compressedBase64);
+    } catch (err: any) {
+      console.error("Error loading image", err);
+      alert(`画像の読み込みに失敗しました。\n詳細: ${err.message || '通信エラー'}`);
+    } finally {
       if (e.target) e.target.value = '';
     }
   };
@@ -163,7 +188,23 @@ export default function Home() {
 
   const finalTitle = mngNumber ? `[${mngNumber}] ${draftTitle}` : draftTitle;
 
+  const clearForm = () => {
+    setImageUrl(null);
+    setRawAiResult(null);
+    setDraftTitle('');
+    setDraftCategory('');
+    setIsCustomCategory(false);
+    setDraftDescription('');
+    setDraftPublisher('');
+    setMngNumber(generateMngNumber());
+  };
+
   const saveToSessionQueue = () => {
+    if (!draftTitle.trim()) {
+      alert("出品タイトルを入力してください。");
+      return;
+    }
+
     const newListing = {
       managementNumber: mngNumber,
       title: finalTitle,
@@ -175,15 +216,21 @@ export default function Home() {
     setSessionListings([...sessionListings, newListing]);
     alert("バッチキューに保存しました！");
     
-    // Reset for next item — auto-generate new management number
+    // Auto-generate new management number for the next item
+    setMngNumber(generateMngNumber());
+
+    // Clear current image so the next item's photo can be uploaded
     setImageUrl(null);
     setRawAiResult(null);
-    setDraftTitle('');
-    setDraftCategory('');
-    setIsCustomCategory(false);
-    setDraftDescription('');
-    setDraftPublisher('');
-    setMngNumber(generateMngNumber());
+
+    // If "Keep Previous Data" is OFF and AI is ON, reset draft fields to blank
+    if (!keepPreviousData && autoAiAnalyze) {
+      setDraftTitle('');
+      setDraftCategory('');
+      setIsCustomCategory(false);
+      setDraftDescription('');
+      setDraftPublisher('');
+    }
   };
 
   const downloadCSV = () => {
@@ -262,12 +309,70 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="main-content">
-        <header className="animate-fade-up" style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>新規出品登録</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>商品画像をアップロードし、AIが生成したデータを確認・編集して保存してください。</p>
+        <header className="animate-fade-up" style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>新規出品登録</h1>
+            <p style={{ color: 'var(--text-secondary)' }}>商品画像をアップロードし、データを確認・編集してバッチ保存してください。</p>
+          </div>
+
+          {/* Workflow Toggles Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg-secondary)', padding: '10px 18px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+            {/* AI Auto-Analyze Toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+              <span style={{ color: 'var(--text-secondary)' }}>AI自動解析:</span>
+              <input 
+                type="checkbox" 
+                checked={autoAiAnalyze} 
+                onChange={(e) => setAutoAiAnalyze(e.target.checked)} 
+                style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+              />
+              <span style={{ 
+                padding: '2px 8px', 
+                borderRadius: '6px', 
+                fontSize: '12px',
+                background: autoAiAnalyze ? 'rgba(234, 88, 12, 0.15)' : 'var(--bg-primary)',
+                color: autoAiAnalyze ? 'var(--accent-primary)' : 'var(--text-muted)' 
+              }}>
+                {autoAiAnalyze ? 'ON' : 'OFF'}
+              </span>
+            </label>
+
+            <span style={{ color: 'var(--border-color)' }}>|</span>
+
+            {/* Keep Previous Data Toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+              <span style={{ color: 'var(--text-secondary)' }}>前回の入力情報を保持:</span>
+              <input 
+                type="checkbox" 
+                checked={keepPreviousData} 
+                onChange={(e) => setKeepPreviousData(e.target.checked)} 
+                style={{ width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer' }}
+              />
+              <span style={{ 
+                padding: '2px 8px', 
+                borderRadius: '6px', 
+                fontSize: '12px',
+                background: keepPreviousData ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-primary)',
+                color: keepPreviousData ? '#10b981' : 'var(--text-muted)' 
+              }}>
+                {keepPreviousData ? 'ON' : 'OFF'}
+              </span>
+            </label>
+          </div>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: (rawAiResult || isUploading) ? '1fr 1.5fr' : '1fr', gap: '24px', alignItems: 'start' }}>
+        {/* Informative notification if AI auto-analysis is OFF */}
+        {!autoAiAnalyze && (
+          <div className="animate-fade-up" style={{ marginBottom: '20px', padding: '10px 16px', background: 'rgba(234, 88, 12, 0.08)', border: '1px solid rgba(234, 88, 12, 0.25)', borderRadius: 'var(--radius-sm)', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>💡</span>
+            <span>
+              <strong>AI自動解析OFFモード：</strong>
+              画像を選択してもAI解析は行われません。前回のタイトル・カテゴリ・出版社等の情報をそのまま維持し、号数や年代のみを変更して素早く出品できます。
+            </span>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: (isUploading || !!imageUrl || !!rawAiResult || !!draftTitle) ? '1fr 1.5fr' : '1fr', gap: '24px', alignItems: 'start' }}>
           
           {/* Left Column: Upload & Image */}
           <section className="glass-panel animate-fade-up" style={{ padding: '32px', textAlign: 'center', border: '2px dashed var(--border-color)' }}>
@@ -281,7 +386,10 @@ export default function Home() {
                   </svg>
                 </div>
                 <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>{isUploading ? "AI解析中..." : "商品画像をアップロード"}</h3>
-                <label className="btn-primary" style={{ marginTop: '16px', cursor: 'pointer', opacity: isUploading ? 0.5 : 1 }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  {autoAiAnalyze ? "画像選択時に自動でタイトル・カテゴリを解析します" : "画像選択時、前回の入力情報を維持したまま出品できます"}
+                </p>
+                <label className="btn-primary" style={{ cursor: 'pointer', opacity: isUploading ? 0.5 : 1 }}>
                   {isUploading ? "テキスト読み取り中..." : "ファイルを選択"}
                   <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} disabled={isUploading} />
                 </label>
@@ -289,9 +397,27 @@ export default function Home() {
             ) : (
               <div>
                 <img src={imageUrl} alt="アップロード済み" style={{ width: '100%', borderRadius: 'var(--radius-sm)', marginBottom: '16px', border: '1px solid var(--border-color)' }} />
-                <button className="btn-secondary" onClick={() => { setImageUrl(null); setRawAiResult(null); }} style={{ width: '100%' }}>
-                  画像を削除
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: !autoAiAnalyze && !rawAiResult ? '12px' : '0' }}>
+                  <label className="btn-secondary" style={{ flex: 1, cursor: 'pointer', fontSize: '13px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    画像を変更
+                    <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} disabled={isUploading} />
+                  </label>
+                  <button className="btn-secondary" onClick={() => { setImageUrl(null); }} style={{ flex: 1, fontSize: '13px' }}>
+                    画像を削除
+                  </button>
+                </div>
+
+                {!autoAiAnalyze && !rawAiResult && (
+                  <button 
+                    type="button" 
+                    onClick={() => runAiAnalysis(imageUrl)} 
+                    disabled={isUploading}
+                    className="btn-primary" 
+                    style={{ width: '100%', fontSize: '13px', marginTop: '4px' }}
+                  >
+                    ⚡️ この画像をAI解析する
+                  </button>
+                )}
               </div>
             )}
           </section>
@@ -318,11 +444,32 @@ export default function Home() {
                 <div className="loading-pulse" style={{ height: '80px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)' }}></div>
               </div>
             </section>
-          ) : rawAiResult && (
+          ) : (isUploading || !!imageUrl || !!rawAiResult || !!draftTitle) && (
             <section className="glass-card animate-fade-up delay-100" style={{ padding: '32px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', color: 'var(--accent-primary)' }}>出品データ（下書き）</h3>
-                <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '12px' }}>AI抽出済み</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ fontSize: '20px', color: 'var(--accent-primary)' }}>出品データ（下書き）</h3>
+                  {rawAiResult ? (
+                    <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '12px', fontWeight: 600 }}>
+                      AI抽出済み
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '12px', background: 'rgba(234, 88, 12, 0.15)', color: 'var(--accent-primary)', padding: '4px 12px', borderRadius: '12px', fontWeight: 600 }}>
+                      前回データ引継中（手動編集）
+                    </span>
+                  )}
+                </div>
+
+                {imageUrl && !rawAiResult && !isUploading && (
+                  <button 
+                    type="button" 
+                    onClick={() => runAiAnalysis(imageUrl)} 
+                    className="btn-secondary"
+                    style={{ fontSize: '12px', padding: '6px 14px', color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+                  >
+                    ⚡️ この画像をAI解析
+                  </button>
+                )}
               </div>
 
               {/* Title & Management Num */}
@@ -528,9 +675,23 @@ export default function Home() {
               </div>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
-                <button className="btn-secondary" onClick={() => { setImageUrl(null); setRawAiResult(null); }}>破棄</button>
-                <button className="btn-primary" onClick={saveToSessionQueue}>保存してバッチキューへ</button>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '24px', flexWrap: 'wrap' }}>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={clearForm} 
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', fontSize: '13px' }}
+                >
+                  フォームをクリア
+                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => { setImageUrl(null); }} style={{ fontSize: '13px' }}>
+                    画像のみ破棄
+                  </button>
+                  <button type="button" className="btn-primary" onClick={saveToSessionQueue} style={{ fontSize: '13px' }}>
+                    保存してバッチキューへ
+                  </button>
+                </div>
               </div>
 
             </section>
