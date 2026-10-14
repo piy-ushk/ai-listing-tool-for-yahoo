@@ -12,18 +12,37 @@ const generateMngNumber = () => {
   return `${num}${letter}`;
 };
 
-// Pre-defined boilerplates
-const BOILERPLATES: Record<string, string> = {
+// Fallback boilerplates in case /api/templates is still loading
+const INITIAL_BOILERPLATES: Record<string, string> = {
+  magazine: `【商品の状態】\n経年による細かい傷・ヤケ・スレ等がある場合がございます。\n通読には問題ございませんが、完全な美品をお求めの神経質な方のご入札はご遠慮ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
   book: `【商品の状態】\n中古品ですので細かい傷・スレ等ある場合がございます。神経質な方のご入札はご遠慮ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
   dvd: `【商品の状態】\n中古DVDとなります。ディスクに細かな傷がある場合がありますが、再生には問題ありません。\nパッケージのスレ等はご了承ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
   bluray: `【商品の状態】\n中古Blu-rayとなります。ディスクに細かな傷がある場合がありますが、再生には問題ありません。\nパッケージのスレ等はご了承ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
   game: `【商品の状態】\n中古品ですので細かい傷・スレ等ある場合がございます。動作確認済みです。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
-  magazine: `【商品の状態】\n中古品ですので細かい傷・ヤケ・スレ等ある場合がございます。神経質な方のご入札はご遠慮ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
   other: `【商品の状態】\n中古品ですので細かい傷・スレ等ある場合がございます。神経質な方のご入札はご遠慮ください。\n写真に写っているものが全てとなります。\nノークレーム・ノーリターンでお願いいたします。`,
 };
 
+const CONDITION_RANKS = [
+  '新品、未使用',
+  '未使用に近い',
+  '目立った傷や汚れなし',
+  'やや傷や汚れあり',
+  '傷や汚れあり',
+  '全体的に状態が悪い',
+];
+
+const SHIPPING_METHODS = [
+  'ネコポス',
+  'ゆうパケット',
+  '宅急便（EAZY）',
+  'ゆうパック',
+  'レターパックプラス',
+  'レターパックライト',
+  '定形外郵便',
+  'その他',
+];
+
 // Helper: Compress and resize image client-side before sending to serverless function
-// This avoids Vercel's 4.5MB payload limit (413 FUNCTION_PAYLOAD_TOO_LARGE) and speeds up analysis
 const compressImage = (file: File, maxDimension = 1600, quality = 0.85): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -66,8 +85,17 @@ const compressImage = (file: File, maxDimension = 1600, quality = 0.85): Promise
   });
 };
 
+interface TemplateItem {
+  id: string;
+  name: string;
+  category: string;
+  content: string;
+  isDefault?: boolean;
+}
+
 export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
+  const [isRegeneratingTitle, setIsRegeneratingTitle] = useState(false);
   
   // AI Raw Results
   const [rawAiResult, setRawAiResult] = useState<any>(null);
@@ -79,22 +107,60 @@ export default function Home() {
   useEffect(() => {
     setMngNumber(generateMngNumber());
   }, []);
+
   const [draftTitle, setDraftTitle] = useState('');
   const [draftCategory, setDraftCategory] = useState('');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [draftDescription, setDraftDescription] = useState('');
   const [draftPublisher, setDraftPublisher] = useState('');
+  const [draftJanIsbn, setDraftJanIsbn] = useState('');
+  const [draftPrice, setDraftPrice] = useState<number>(1000);
+  const [draftBuyoutPrice, setDraftBuyoutPrice] = useState<number | ''>('');
+  const [draftCondition, setDraftCondition] = useState<string>('目立った傷や汚れなし');
+  const [draftShippingPayer, setDraftShippingPayer] = useState<'seller' | 'buyer'>('seller');
+  const [draftShippingMethod, setDraftShippingMethod] = useState<string>('ネコポス');
+  const [draftDescription, setDraftDescription] = useState('');
+  const [detectedProductType, setDetectedProductType] = useState('other');
+
+  // Templates from API
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('tpl_other');
+  const [descriptionMode, setDescriptionMode] = useState<'template_only' | 'template_manual' | 'template_ai'>('template_manual');
   const [useAiDesc, setUseAiDesc] = useState(false);
-  const [activeBoilerplate, setActiveBoilerplate] = useState('other');
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
   // Workflow Control: AI Auto-Analysis Toggle & Keep Previous Data Toggle
   const [autoAiAnalyze, setAutoAiAnalyze] = useState(true);
   const [keepPreviousData, setKeepPreviousData] = useState(true);
 
-  // Session Queue (Temporary before DB is connected)
-  const [sessionListings, setSessionListings] = useState<any[]>([]);
+  // Database / Queue counts
+  const [dbProductCount, setDbProductCount] = useState<number>(0);
+  const [isSavingDb, setIsSavingDb] = useState(false);
+
+  // Fetch templates & DB product count on mount
+  useEffect(() => {
+    fetch('/api/templates')
+      .then(res => res.json())
+      .then(data => {
+        if (data.templates && data.templates.length > 0) {
+          setTemplates(data.templates);
+          setSelectedTemplateId(prev => {
+            const exists = data.templates.some((t: TemplateItem) => t.id === prev);
+            return exists ? prev : data.templates[0].id;
+          });
+        }
+      })
+      .catch(err => console.error("Could not fetch templates", err));
+
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => {
+        if (data.products) {
+          setDbProductCount(data.products.length);
+        }
+      })
+      .catch(err => console.error("Could not fetch product count", err));
+  }, []);
 
   // Execute AI analysis on demand
   const runAiAnalysis = async (base64String: string) => {
@@ -130,12 +196,25 @@ export default function Home() {
       setDraftCategory(data.category || '');
       setIsCustomCategory(false);
       setDraftPublisher(data.publisher || '');
+      if (data.jan_isbn) {
+        setDraftJanIsbn(data.jan_isbn);
+      }
 
-      // Auto-apply the correct boilerplate based on detected product type
       const pType = data.product_type || 'other';
-      setActiveBoilerplate(pType);
-      const template = BOILERPLATES[pType] || BOILERPLATES['other'];
-      setDraftDescription(template);
+      setDetectedProductType(pType);
+
+      // Auto-apply matching template
+      const matchedTpl = templates.find(t => t.category === pType && t.isDefault)
+        || templates.find(t => t.category === pType)
+        || templates.find(t => t.category === 'other')
+        || templates[0];
+      if (matchedTpl) {
+        setSelectedTemplateId(matchedTpl.id);
+        setDraftDescription(matchedTpl.content);
+      } else {
+        const templateContent = INITIAL_BOILERPLATES[pType] || INITIAL_BOILERPLATES['other'];
+        setDraftDescription(templateContent);
+      }
       setUseAiDesc(false);
 
     } catch (err: any) {
@@ -150,25 +229,49 @@ export default function Home() {
     }
   };
 
+  // Regenerate Title while retaining management number
+  const handleRegenerateTitle = async () => {
+    if (!imageUrl) {
+      alert("画像を先に選択してください。");
+      return;
+    }
+
+    try {
+      setIsRegeneratingTitle(true);
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: imageUrl })
+      });
+
+      const data = await response.json();
+      if (data.title) {
+        setDraftTitle(data.title);
+        // Management number is untouched!
+      }
+    } catch (err) {
+      alert("タイトルの再生成に失敗しました。");
+    } finally {
+      setIsRegeneratingTitle(false);
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      // Compress image client-side to prevent Vercel 4.5MB limit
       const compressedBase64 = await compressImage(file);
       setImageUrl(compressedBase64);
 
       if (!autoAiAnalyze) {
-        // AI is OFF: Do NOT analyze image automatically.
-        // If draft description is empty, set default boilerplate
         if (!draftDescription) {
-          setDraftDescription(BOILERPLATES[activeBoilerplate] || BOILERPLATES['other']);
+          const matchedTpl = templates.find(t => t.id === selectedTemplateId) || templates[0];
+          setDraftDescription(matchedTpl ? matchedTpl.content : (INITIAL_BOILERPLATES['other']));
         }
         return;
       }
 
-      // AI is ON: Run automatic extraction
       await runAiAnalysis(compressedBase64);
     } catch (err: any) {
       console.error("Error loading image", err);
@@ -178,12 +281,13 @@ export default function Home() {
     }
   };
 
-  const applyBoilerplate = (type: string, aiToggleOverride?: boolean) => {
-    setActiveBoilerplate(type);
-    const template = BOILERPLATES[type] || BOILERPLATES['other'];
-    const includeAi = aiToggleOverride !== undefined ? aiToggleOverride : useAiDesc;
+  const applyTemplateById = (templateId: string, aiToggleOverride?: boolean) => {
+    setSelectedTemplateId(templateId);
+    const matched = templates.find(t => t.id === templateId);
+    const templateContent = matched ? matched.content : INITIAL_BOILERPLATES['other'];
+    const includeAi = aiToggleOverride !== undefined ? aiToggleOverride : (descriptionMode === 'template_ai');
     const aiText = includeAi && rawAiResult?.description ? `\n\n${rawAiResult.description}` : '';
-    setDraftDescription(template + aiText);
+    setDraftDescription(templateContent + aiText);
   };
 
   const finalTitle = mngNumber ? `[${mngNumber}] ${draftTitle}` : draftTitle;
@@ -196,70 +300,68 @@ export default function Home() {
     setIsCustomCategory(false);
     setDraftDescription('');
     setDraftPublisher('');
+    setDraftJanIsbn('');
+    setDraftPrice(1000);
+    setDraftBuyoutPrice('');
     setMngNumber(generateMngNumber());
   };
 
-  const saveToSessionQueue = () => {
+  // Save to Kongo-do Database & Session Queue
+  const saveToDatabase = async () => {
     if (!draftTitle.trim()) {
       alert("出品タイトルを入力してください。");
       return;
     }
 
-    const newListing = {
-      managementNumber: mngNumber,
-      title: finalTitle,
-      category: draftCategory,
-      publisher: draftPublisher,
-      description: draftDescription,
-    };
-    
-    setSessionListings([...sessionListings, newListing]);
-    alert("バッチキューに保存しました！");
-    
-    // Auto-generate new management number for the next item
-    setMngNumber(generateMngNumber());
+    try {
+      setIsSavingDb(true);
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          managementNumber: mngNumber,
+          title: finalTitle,
+          category: draftCategory || 'すべて>本、雑誌',
+          publisher: draftPublisher || '',
+          janIsbn: draftJanIsbn || '',
+          price: Number(draftPrice) || 1000,
+          buyoutPrice: draftBuyoutPrice ? Number(draftBuyoutPrice) : null,
+          conditionRank: draftCondition,
+          shippingPayer: draftShippingPayer,
+          shippingMethod: draftShippingMethod,
+          shippingOrigin: '東京都',
+          description: draftDescription,
+          imageUrl: imageUrl || null,
+          productType: detectedProductType || 'other',
+          status: 'pending',
+        })
+      });
 
-    // Clear current image so the next item's photo can be uploaded
-    setImageUrl(null);
-    setRawAiResult(null);
+      if (!res.ok) {
+        throw new Error('データベースへの保存に失敗しました');
+      }
 
-    // If "Keep Previous Data" is OFF and AI is ON, reset draft fields to blank
-    if (!keepPreviousData && autoAiAnalyze) {
-      setDraftTitle('');
-      setDraftCategory('');
-      setIsCustomCategory(false);
-      setDraftDescription('');
-      setDraftPublisher('');
+      setDbProductCount(prev => prev + 1);
+      alert("金剛洞データベース（出品待ち）に保存しました！\n複数PCから「在庫DB」画面で確認・一括出力が可能です。");
+
+      // Auto-generate next management number
+      setMngNumber(generateMngNumber());
+      setImageUrl(null);
+      setRawAiResult(null);
+
+      if (!keepPreviousData && autoAiAnalyze) {
+        setDraftTitle('');
+        setDraftCategory('');
+        setIsCustomCategory(false);
+        setDraftDescription('');
+        setDraftPublisher('');
+        setDraftJanIsbn('');
+      }
+    } catch (err: any) {
+      alert(err.message || "保存に失敗しました");
+    } finally {
+      setIsSavingDb(false);
     }
-  };
-
-  const downloadCSV = () => {
-    if (sessionListings.length === 0) {
-      alert("ダウンロードするアイテムがありません。");
-      return;
-    }
-
-    const headers = ["管理番号", "タイトル", "カテゴリ", "出版社/メーカー", "商品説明"];
-    const rows = sessionListings.map(item => [
-      `"${item.managementNumber}"`,
-      `"${item.title.replace(/"/g, '""')}"`,
-      `"${item.category.replace(/"/g, '""')}"`,
-      `"${(item.publisher || '').replace(/"/g, '""')}"`,
-      `"${item.description.replace(/"/g, '""').replace(/\n/g, '\\n')}"`
-    ]);
-
-    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-    
-    // Add BOM for Japanese Excel compatibility
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `yahoo_batch_${new Date().getTime()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   return (
@@ -275,35 +377,30 @@ export default function Home() {
           <Link href="/" style={{ padding: '12px 16px', background: 'rgba(234, 88, 12, 0.1)', color: 'var(--accent-primary)', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
             新規出品
           </Link>
-          <div style={{ padding: '12px 16px', color: 'var(--text-muted)', cursor: 'not-allowed', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Link href="/inventory" style={{ padding: '12px 16px', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             在庫DB
-            <span style={{ fontSize: '10px', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>未実装</span>
-          </div>
-          <div style={{ padding: '12px 16px', color: 'var(--text-muted)', cursor: 'not-allowed', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', background: 'var(--bg-primary)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, color: 'var(--accent-primary)' }}>
+              {dbProductCount}件
+            </span>
+          </Link>
+          <Link href="/settings" style={{ padding: '12px 16px', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)' }}>
             定型文設定
-            <span style={{ fontSize: '10px', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>未実装</span>
-          </div>
+          </Link>
         </nav>
 
-        {/* Batch Queue Widget */}
+        {/* Database Shortcut Widget */}
         <div style={{ marginTop: 'auto', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>バッチ出力キュー</p>
+          <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>金剛洞DB 登録済み商品</p>
           <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent-primary)', marginBottom: '16px' }}>
-            {sessionListings.length} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>件</span>
+            {dbProductCount} <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>件</span>
           </div>
-          <button 
-            onClick={downloadCSV} 
+          <Link 
+            href="/inventory"
             className="btn-primary" 
-            style={{ width: '100%', fontSize: '13px', opacity: sessionListings.length === 0 ? 0.5 : 1, cursor: sessionListings.length === 0 ? 'not-allowed' : 'pointer' }}
-            disabled={sessionListings.length === 0}
+            style={{ width: '100%', fontSize: '13px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            ヤフオク用CSV出力
-          </button>
+            在庫DBで一括管理 ↗
+          </Link>
         </div>
       </aside>
 
@@ -312,7 +409,7 @@ export default function Home() {
         <header className="animate-fade-up" style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>新規出品登録</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>商品画像をアップロードし、データを確認・編集してバッチ保存してください。</p>
+            <p style={{ color: 'var(--text-secondary)' }}>商品画像を登録し、AI自動判別または手動調整を経て金剛洞DBに保存します。</p>
           </div>
 
           {/* Workflow Toggles Bar */}
@@ -367,7 +464,7 @@ export default function Home() {
             <span>💡</span>
             <span>
               <strong>AI自動解析OFFモード：</strong>
-              画像を選択してもAI解析は行われません。前回のタイトル・カテゴリ・出版社等の情報をそのまま維持し、号数や年代のみを変更して素早く出品できます。
+              画像を選択してもAI解析は行われません。前回のタイトル・カテゴリ・出版社等の情報をそのまま維持し、号数や年代のみを変更して素早く連続出品できます。
             </span>
           </div>
         )}
@@ -387,7 +484,7 @@ export default function Home() {
                 </div>
                 <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>{isUploading ? "AI解析中..." : "商品画像をアップロード"}</h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  {autoAiAnalyze ? "画像選択時に自動でタイトル・カテゴリを解析します" : "画像選択時、前回の入力情報を維持したまま出品できます"}
+                  {autoAiAnalyze ? "画像選択時に自動でタイトル・カテゴリ・型番等を解析します" : "画像選択時、前回の入力情報を維持したまま出品できます"}
                 </p>
                 <label className="btn-primary" style={{ cursor: 'pointer', opacity: isUploading ? 0.5 : 1 }}>
                   {isUploading ? "テキスト読み取り中..." : "ファイルを選択"}
@@ -413,7 +510,7 @@ export default function Home() {
                     onClick={() => runAiAnalysis(imageUrl)} 
                     disabled={isUploading}
                     className="btn-primary" 
-                    style={{ width: '100%', fontSize: '13px', marginTop: '4px' }}
+                    style={{ width: '100%', fontSize: '13px', marginTop: '8px' }}
                   >
                     ⚡️ この画像をAI解析する
                   </button>
@@ -435,7 +532,7 @@ export default function Home() {
               </svg>
               <h3 style={{ color: 'var(--accent-primary)', marginBottom: '12px', fontSize: '20px' }}>AIが商品情報を抽出中...</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '15px', textAlign: 'center', lineHeight: '1.6', marginBottom: '32px' }}>
-                画像からタイトル、カテゴリなどを<br/>自動で読み取っています。数秒お待ちください。
+                画像からタイトル、カテゴリ、型番などを<br/>自動で読み取っています。数秒お待ちください。
               </p>
               
               <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -474,13 +571,27 @@ export default function Home() {
 
               {/* Title & Management Num */}
               <div style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <div style={{ width: '110px' }}>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>管理番号</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ width: '110px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>管理番号</label>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>出品タイトル ({draftTitle.length}/65文字)</label>
+                    </div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>出品タイトル</label>
-                  </div>
+                  {imageUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRegenerateTitle}
+                      disabled={isRegeneratingTitle}
+                      className="btn-secondary"
+                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                      title="現在の管理番号を保持したまま、AIでタイトルのみを再生成します"
+                    >
+                      {isRegeneratingTitle ? '再生成中...' : '🔄 タイトル再生成 (管理番号保持)'}
+                    </button>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input 
@@ -498,7 +609,7 @@ export default function Home() {
                   />
                 </div>
                 <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                  プレビュー：<strong style={{ color: 'var(--text-primary)' }}>{finalTitle}</strong>
+                  ヤフオク掲載プレビュー：<strong style={{ color: 'var(--text-primary)' }}>{finalTitle}</strong>
                 </div>
               </div>
 
@@ -506,11 +617,11 @@ export default function Home() {
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      カテゴリ
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      ヤフオク カテゴリ
                     </label>
                     <span style={{ fontSize: '11px', background: 'rgba(234, 88, 12, 0.1)', color: 'var(--accent-primary)', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
-                      ヤフオク階層型選択
+                      階層選択対応
                     </span>
                   </div>
                   <button
@@ -557,8 +668,6 @@ export default function Home() {
                           minHeight: '44px',
                           transition: 'all 0.15s ease'
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                           <span style={{ fontSize: '16px' }}>📂</span>
@@ -590,54 +699,194 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-
-                {draftCategory && (
-                  <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    選択中: <span style={{ color: 'var(--text-primary)' }}>{draftCategory}</span>
-                  </div>
-                )}
               </div>
 
-              {/* Publisher */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
-                  出版社 / メーカー
-                </label>
-                <input 
-                  className="input-field" 
-                  value={draftPublisher} 
-                  onChange={(e) => setDraftPublisher(e.target.value)} 
-                  placeholder="例：集英社、双葉社、マドンナ" 
-                />
-              </div>
-
-              {/* Boilerplate Injection */}
-              <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-secondary)' }}>定型文を挿入</label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('book')}>本・写真集</button>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('dvd')}>DVD</button>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('bluray')}>Blu-ray</button>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('game')}>ゲーム</button>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('magazine')}>雑誌</button>
-                  <button className="btn-secondary" onClick={() => applyBoilerplate('other')}>その他</button>
+              {/* Publisher & JAN/ISBN/Model Number */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    出版社 / メーカー / レーベル
+                  </label>
+                  <input 
+                    className="input-field" 
+                    value={draftPublisher} 
+                    onChange={(e) => setDraftPublisher(e.target.value)} 
+                    placeholder="例：集英社、双葉社、マドンナ" 
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    JANコード / ISBN / 型番
+                  </label>
+                  <input 
+                    className="input-field" 
+                    value={draftJanIsbn} 
+                    onChange={(e) => setDraftJanIsbn(e.target.value)} 
+                    placeholder="例: 9784088725093, SLPS-00001" 
+                  />
                 </div>
               </div>
 
-              {/* Description */}
-              <div style={{ marginBottom: '32px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>最終説明文</label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+              {/* Price, Buyout Price & Condition Rank */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    開始価格 (円) *
+                  </label>
+                  <input 
+                    type="number"
+                    className="input-field" 
+                    value={draftPrice} 
+                    onChange={(e) => setDraftPrice(Number(e.target.value))} 
+                    placeholder="1000" 
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    即決価格 (任意)
+                  </label>
+                  <input 
+                    type="number"
+                    className="input-field" 
+                    value={draftBuyoutPrice} 
+                    onChange={(e) => setDraftBuyoutPrice(e.target.value ? Number(e.target.value) : '')} 
+                    placeholder="例: 3000" 
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    商品の状態 (ヤフオク基準)
+                  </label>
+                  <select 
+                    className="input-field"
+                    value={draftCondition}
+                    onChange={(e) => setDraftCondition(e.target.value)}
+                  >
+                    {CONDITION_RANKS.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Shipping Payer & Shipping Method */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    送料負担
+                  </label>
+                  <select 
+                    className="input-field"
+                    value={draftShippingPayer}
+                    onChange={(e) => setDraftShippingPayer(e.target.value as any)}
+                  >
+                    <option value="seller">出品者負担（送料無料）</option>
+                    <option value="buyer">落札者負担</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                    配送方法
+                  </label>
+                  <select 
+                    className="input-field"
+                    value={draftShippingMethod}
+                    onChange={(e) => setDraftShippingMethod(e.target.value)}
+                  >
+                    {SHIPPING_METHODS.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Boilerplate & Description Options */}
+              <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    定型文テンプレートを選択
+                  </label>
+                  <Link href="/settings" style={{ fontSize: '12px', color: 'var(--accent-primary)', textDecoration: 'underline' }}>
+                    定型文の設定・追加はこちら ↗
+                  </Link>
+                </div>
+
+                {/* Quick Select Buttons for ALL templates (including custom ones) */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                  {templates.map(tpl => {
+                    const isSelected = selectedTemplateId === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => applyTemplateById(tpl.id)}
+                        className="btn-secondary"
+                        style={{
+                          fontSize: '12px',
+                          padding: '6px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          fontWeight: isSelected ? 600 : 400,
+                          background: isSelected ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                          color: isSelected ? '#ffffff' : 'var(--text-primary)',
+                          borderColor: isSelected ? 'var(--accent-primary)' : 'var(--border-color)',
+                          boxShadow: isSelected ? '0 2px 6px rgba(234, 88, 12, 0.25)' : 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {!tpl.isDefault && (
+                          <span style={{
+                            fontSize: '10px',
+                            background: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'rgba(234, 88, 12, 0.12)',
+                            color: isSelected ? '#ffffff' : 'var(--accent-primary)',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            fontWeight: 600
+                          }}>
+                            カスタム
+                          </span>
+                        )}
+                        {tpl.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Description Creation Mode */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', borderTop: '1px dashed var(--border-color)', paddingTop: '10px', fontSize: '12px' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>説明作成モード:</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                     <input 
-                      type="checkbox" 
-                      checked={useAiDesc} 
-                      disabled={isGeneratingDesc}
-                      onChange={async (e) => {
-                        const checked = e.target.checked;
-                        setUseAiDesc(checked);
-                        
-                        if (checked && (!rawAiResult || !rawAiResult.description) && imageUrl) {
+                      type="radio" 
+                      name="desc_mode" 
+                      checked={descriptionMode === 'template_only'} 
+                      onChange={() => {
+                        setDescriptionMode('template_only');
+                        applyTemplateById(selectedTemplateId, false);
+                      }}
+                    />
+                    定型文のみ
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="desc_mode" 
+                      checked={descriptionMode === 'template_manual'} 
+                      onChange={() => setDescriptionMode('template_manual')}
+                    />
+                    定型文＋手入力説明
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input 
+                      type="radio" 
+                      name="desc_mode" 
+                      checked={descriptionMode === 'template_ai'} 
+                      onChange={async () => {
+                        setDescriptionMode('template_ai');
+                        if ((!rawAiResult || !rawAiResult.description) && imageUrl) {
                           setIsGeneratingDesc(true);
                           try {
                             const response = await fetch('/api/generate-description', {
@@ -646,31 +895,33 @@ export default function Home() {
                               body: JSON.stringify({ imageBase64: imageUrl })
                             });
                             const data = await response.json();
-                            
                             setRawAiResult((prev: any) => ({ ...prev, description: data.description }));
-                            const template = BOILERPLATES[activeBoilerplate] || BOILERPLATES['other'];
-                            setDraftDescription(template + `\n\n${data.description}`);
+                            applyTemplateById(selectedTemplateId, true);
                           } catch (err) {
-                            console.error(err);
-                            alert("説明文の生成に失敗しました。");
-                            setUseAiDesc(false);
+                            alert("AI特記事項の生成に失敗しました。");
                           } finally {
                             setIsGeneratingDesc(false);
                           }
                         } else {
-                          applyBoilerplate(activeBoilerplate, checked);
+                          applyTemplateById(selectedTemplateId, true);
                         }
-                      }} 
-                      style={{ accentColor: 'var(--accent-primary)' }}
+                      }}
                     />
-                    AI生成の状態説明を含める {isGeneratingDesc && <span style={{ color: 'var(--accent-primary)', fontSize: '12px' }}>(生成中...)</span>}
+                    定型文＋AI生成特記事項 {isGeneratingDesc && <span style={{ color: 'var(--accent-primary)' }}>(生成中...)</span>}
                   </label>
                 </div>
+              </div>
+
+              {/* Final Description Textarea */}
+              <div style={{ marginBottom: '32px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                  ヤフオク掲載用 商品説明文
+                </label>
                 <textarea 
                   className="input-field" 
                   value={draftDescription} 
                   onChange={(e) => setDraftDescription(e.target.value)} 
-                  style={{ height: '200px', resize: 'vertical', lineHeight: '1.6' }} 
+                  style={{ height: '180px', resize: 'vertical', lineHeight: '1.6' }} 
                 />
               </div>
 
@@ -688,8 +939,14 @@ export default function Home() {
                   <button type="button" className="btn-secondary" onClick={() => { setImageUrl(null); }} style={{ fontSize: '13px' }}>
                     画像のみ破棄
                   </button>
-                  <button type="button" className="btn-primary" onClick={saveToSessionQueue} style={{ fontSize: '13px' }}>
-                    保存してバッチキューへ
+                  <button 
+                    type="button" 
+                    className="btn-primary" 
+                    onClick={saveToDatabase} 
+                    disabled={isSavingDb}
+                    style={{ fontSize: '13px' }}
+                  >
+                    {isSavingDb ? '保存中...' : '金剛洞DBに保存（出品待ち）'}
                   </button>
                 </div>
               </div>

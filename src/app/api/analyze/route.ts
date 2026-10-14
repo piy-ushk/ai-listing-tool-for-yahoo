@@ -109,6 +109,7 @@ Return ONLY a strictly valid JSON object (no markdown, no backticks) with these 
 - "category": string (Uncensored, deepest Yahoo Auctions category path starting with すべて>, in Japanese)
 - "keywords": string (Comma-separated exact text phrases extracted from the cover, in Japanese)
 - "publisher": string (Publisher/Maker, inferred from knowledge or image. Leave empty string if unknown)
+- "jan_isbn": string (JAN code, ISBN, or product/model number if printed/visible. Empty string if not visible)
 - "product_type": string (one of: "book", "dvd", "bluray", "game", "magazine", "figure", "other")`
             },
             {
