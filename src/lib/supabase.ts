@@ -1,10 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const getEnv = (key: string) => (process.env[key] || '').trim();
+
+const supabaseUrl = getEnv('NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');
+const supabaseKey = getEnv('SUPABASE_SERVICE_ROLE_KEY') || getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
 export const isSupabaseConfigured = () => {
-  return Boolean(supabaseUrl && supabaseKey && supabaseUrl.startsWith('http'));
+  return Boolean(
+    supabaseUrl &&
+    supabaseKey &&
+    supabaseUrl.startsWith('https://') &&
+    !supabaseUrl.includes('your-project-ref') &&
+    !supabaseUrl.includes('dashboard/project')
+  );
 };
 
 export const supabase = isSupabaseConfigured()
