@@ -111,7 +111,8 @@ export default function InventoryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error('ステータス更新に失敗しました');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'ステータス更新に失敗しました');
       setProducts(prev =>
         prev.map(p => (p.id === id ? { ...p, status: newStatus } : p))
       );
@@ -125,7 +126,8 @@ export default function InventoryPage() {
 
     try {
       const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('削除に失敗しました');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '削除に失敗しました');
       setProducts(prev => prev.filter(p => p.id !== id));
       setSelectedIds(prev => prev.filter(i => i !== id));
     } catch (err: any) {
@@ -155,8 +157,8 @@ export default function InventoryPage() {
         body: JSON.stringify(editingProduct),
       });
 
-      if (!res.ok) throw new Error('更新に失敗しました');
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '更新に失敗しました');
       setProducts(prev =>
         prev.map(p => (p.id === editingProduct.id ? data.product : p))
       );
