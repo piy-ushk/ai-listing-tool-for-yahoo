@@ -337,8 +337,9 @@ export default function Home() {
         })
       });
 
+      const resData = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error('データベースへの保存に失敗しました');
+        throw new Error(resData.error || 'データベースへの保存に失敗しました');
       }
 
       setDbProductCount(prev => prev + 1);

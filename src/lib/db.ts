@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 export interface Product {
@@ -32,10 +33,6 @@ export interface Template {
   createdAt: string;
   updatedAt: string;
 }
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
-const TEMPLATES_FILE = path.join(DATA_DIR, 'templates.json');
 
 const DEFAULT_TEMPLATES: Template[] = [
   {
@@ -94,17 +91,58 @@ const DEFAULT_TEMPLATES: Template[] = [
   },
 ];
 
+// Helper to determine safe writable storage directory (supports local dev & Vercel serverless /tmp)
+function getStoragePaths() {
+  const localDir = path.join(process.cwd(), 'data');
+  try {
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+    const testFile = path.join(localDir, '.write_test');
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+    return {
+      dataDir: localDir,
+      productsFile: path.join(localDir, 'products.json'),
+      templatesFile: path.join(localDir, 'templates.json'),
+    };
+  } catch (err) {
+    // Read-only filesystem (e.g. Vercel / AWS Lambda), fallback to /tmp
+    const tmpDir = path.join(os.tmpdir(), 'kongodo_data');
+    try {
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+    } catch {}
+    return {
+      dataDir: tmpDir,
+      productsFile: path.join(tmpDir, 'products.json'),
+      templatesFile: path.join(tmpDir, 'templates.json'),
+    };
+  }
+}
+
 function ensureFilesExist() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  if (!fs.existsSync(PRODUCTS_FILE)) {
-    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify([], null, 2), 'utf-8');
-  }
-
-  if (!fs.existsSync(TEMPLATES_FILE)) {
-    fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(DEFAULT_TEMPLATES, null, 2), 'utf-8');
+  const { dataDir, productsFile, templatesFile } = getStoragePaths();
+  try {
+    if (!fs.existsSync(/*turbopackIgnore: true*/ dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    if (!fs.existsSync(/*turbopackIgnore: true*/ productsFile)) {
+      fs.writeFileSync(productsFile, JSON.stringify([], null, 2), 'utf-8');
+    }
+    if (!fs.existsSync(/*turbopackIgnore: true*/ templatesFile)) {
+      const seedFile = path.join(process.cwd(), 'data', 'templates.json');
+      let seed = DEFAULT_TEMPLATES;
+      if (fs.existsSync(seedFile)) {
+        try {
+          seed = JSON.parse(fs.readFileSync(seedFile, 'utf-8'));
+        } catch {}
+      }
+      fs.writeFileSync(templatesFile, JSON.stringify(seed, null, 2), 'utf-8');
+    }
+  } catch (e: any) {
+    console.warn('ensureFilesExist warning:', e.message);
   }
 }
 
@@ -152,8 +190,10 @@ export async function getProducts(filters?: {
 
   // Local File Fallback
   ensureFilesExist();
+  const { productsFile } = getStoragePaths();
   try {
-    const raw = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
+    if (!fs.existsSync(/*turbopackIgnore: true*/ productsFile)) return [];
+    const raw = fs.readFileSync(/*turbopackIgnore: true*/ productsFile, 'utf-8');
     let products: Product[] = JSON.parse(raw);
 
     if (filters?.status && filters.status !== 'all') {
@@ -177,7 +217,7 @@ export async function getProducts(filters?: {
 
     return products.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   } catch (err) {
-    console.error('Error reading local products file:', err);
+    console.error('Error reading products file:', err);
     return [];
   }
 }
@@ -212,18 +252,26 @@ export async function createProduct(
     try {
       const { data: inserted, error } = await supabase.from('products').insert([newProduct]).select().single();
       if (!error && inserted) return inserted as Product;
-      console.warn('Supabase product insert failed, writing to local file:', error?.message);
+      console.error('Supabase product insert error:', error?.message);
+      throw new Error(`Supabase Error: ${error?.message || 'Failed to save product in cloud database'}`);
     } catch (e: any) {
-      console.warn('Supabase product insert error:', e.message);
+      console.error('Supabase product insert exception:', e.message);
+      throw e;
     }
   }
 
-  // Local File Fallback
+  // Local File Fallback (only used when Supabase is not configured)
   ensureFilesExist();
-  const products = await getProducts();
-  products.unshift(newProduct);
-  fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
-  return newProduct;
+  const { productsFile } = getStoragePaths();
+  try {
+    const products = await getProducts();
+    products.unshift(newProduct);
+    fs.writeFileSync(productsFile, JSON.stringify(products, null, 2), 'utf-8');
+    return newProduct;
+  } catch (err: any) {
+    console.error('Error writing to local product file:', err.message);
+    throw new Error(`Database Storage Error: ${err.message}. If running on Vercel, please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel Environment Variables.`);
+  }
 }
 
 export async function updateProduct(
@@ -241,12 +289,16 @@ export async function updateProduct(
         .select()
         .single();
       if (!error && updated) return updated as Product;
+      console.error('Supabase product update error:', error?.message);
+      throw new Error(`Supabase Error: ${error?.message}`);
     } catch (e: any) {
-      console.warn('Supabase update failed:', e.message);
+      console.error('Supabase update exception:', e.message);
+      throw e;
     }
   }
 
   ensureFilesExist();
+  const { productsFile } = getStoragePaths();
   const products = await getProducts();
   const index = products.findIndex(p => p.id === id);
   if (index === -1) return null;
@@ -258,7 +310,11 @@ export async function updateProduct(
   };
 
   products[index] = updated;
-  fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(productsFile, JSON.stringify(products, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn('File update warning:', err.message);
+  }
   return updated;
 }
 
@@ -273,11 +329,16 @@ export async function deleteProduct(id: string): Promise<boolean> {
   }
 
   ensureFilesExist();
+  const { productsFile } = getStoragePaths();
   const products = await getProducts();
   const filtered = products.filter(p => p.id !== id);
   if (filtered.length === products.length) return false;
 
-  fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(productsFile, JSON.stringify(filtered, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn('File delete warning:', err.message);
+  }
   return true;
 }
 
@@ -296,12 +357,14 @@ export async function getTemplates(): Promise<Template[]> {
   }
 
   ensureFilesExist();
+  const { templatesFile } = getStoragePaths();
   try {
-    const raw = fs.readFileSync(TEMPLATES_FILE, 'utf-8');
+    if (!fs.existsSync(/*turbopackIgnore: true*/ templatesFile)) return DEFAULT_TEMPLATES;
+    const raw = fs.readFileSync(/*turbopackIgnore: true*/ templatesFile, 'utf-8');
     const templates: Template[] = JSON.parse(raw);
     return templates;
   } catch (err) {
-    console.error('Error reading local templates:', err);
+    console.error('Error reading templates file:', err);
     return DEFAULT_TEMPLATES;
   }
 }
@@ -335,15 +398,23 @@ export async function createTemplate(
     try {
       const { data: inserted, error } = await supabase.from('templates').insert([newTemplate]).select().single();
       if (!error && inserted) return inserted as Template;
+      console.error('Supabase template insert error:', error?.message);
+      throw new Error(`Supabase Error: ${error?.message}`);
     } catch (e: any) {
-      console.warn('Supabase template create error:', e.message);
+      console.error('Supabase template create error:', e.message);
+      throw e;
     }
   }
 
   ensureFilesExist();
+  const { templatesFile } = getStoragePaths();
   const templates = await getTemplates();
   templates.push(newTemplate);
-  fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(templates, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(templatesFile, JSON.stringify(templates, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn('Template write warning:', err.message);
+  }
   return newTemplate;
 }
 
@@ -363,11 +434,13 @@ export async function updateTemplate(
         .single();
       if (!error && updated) return updated as Template;
     } catch (e: any) {
-      console.warn('Supabase template update error:', e.message);
+      console.error('Supabase template update error:', e.message);
+      throw e;
     }
   }
 
   ensureFilesExist();
+  const { templatesFile } = getStoragePaths();
   const templates = await getTemplates();
   const index = templates.findIndex(t => t.id === id);
   if (index === -1) return null;
@@ -379,7 +452,11 @@ export async function updateTemplate(
   };
 
   templates[index] = updated;
-  fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(templates, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(templatesFile, JSON.stringify(templates, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn('Template update warning:', err.message);
+  }
   return updated;
 }
 
@@ -394,10 +471,15 @@ export async function deleteTemplate(id: string): Promise<boolean> {
   }
 
   ensureFilesExist();
+  const { templatesFile } = getStoragePaths();
   const templates = await getTemplates();
   const filtered = templates.filter(t => t.id !== id);
   if (filtered.length === templates.length) return false;
 
-  fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(templatesFile, JSON.stringify(filtered, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn('Template delete warning:', err.message);
+  }
   return true;
 }

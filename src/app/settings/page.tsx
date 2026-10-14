@@ -97,7 +97,8 @@ export default function SettingsPage() {
             content: formContent.trim(),
           }),
         });
-        if (!res.ok) throw new Error('更新に失敗しました');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '更新に失敗しました');
       } else {
         // Create
         const res = await fetch('/api/templates', {
@@ -109,7 +110,8 @@ export default function SettingsPage() {
             content: formContent.trim(),
           }),
         });
-        if (!res.ok) throw new Error('作成に失敗しました');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || '作成に失敗しました');
       }
 
       await fetchTemplates();
@@ -126,7 +128,8 @@ export default function SettingsPage() {
 
     try {
       const res = await fetch(`/api/templates/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('削除に失敗しました');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '削除に失敗しました');
       await fetchTemplates();
     } catch (err: any) {
       alert(err.message || '削除に失敗しました');
