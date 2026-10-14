@@ -20,12 +20,13 @@ export async function POST(req: Request) {
       });
     }
 
-    // Call Gemini API with automatic fallback across models to eliminate 503 "High Demand" errors
+    // Call Gemini API with automatic fallback across models to eliminate 429 quota and 503 errors
     const CANDIDATE_MODELS = [
-      'gemini-3.5-flash',
-      'gemini-3.6-flash',
       'gemini-3.1-flash-lite',
-      'gemini-flash-lite-latest'
+      'gemini-3.5-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-3.5-flash',
+      'gemini-3.6-flash'
     ];
 
     const requestPayload = {
