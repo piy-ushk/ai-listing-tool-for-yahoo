@@ -290,7 +290,16 @@ export default function Home() {
     setDraftDescription(templateContent + aiText);
   };
 
-  const finalTitle = mngNumber ? `[${mngNumber}] ${draftTitle}` : draftTitle;
+  const formatTitleWithTag = (tag: string, title: string) => {
+    if (!tag || !tag.trim()) return title;
+    const cleanTag = tag.trim();
+    if (cleanTag.startsWith('【') || cleanTag.startsWith('[')) {
+      return `${cleanTag} ${title}`;
+    }
+    return `【${cleanTag}】${title}`;
+  };
+
+  const finalTitle = formatTitleWithTag(mngNumber, draftTitle);
 
   const clearForm = () => {
     setImageUrl(null);
@@ -578,7 +587,9 @@ export default function Home() {
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>管理番号</label>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>出品タイトル ({draftTitle.length}/65文字)</label>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        管理番号・棚番 ＆ 出品タイトル ({draftTitle.length}/65文字)
+                      </label>
                     </div>
                   </div>
                   {imageUrl && (
@@ -588,9 +599,9 @@ export default function Home() {
                       disabled={isRegeneratingTitle}
                       className="btn-secondary"
                       style={{ fontSize: '11px', padding: '4px 10px' }}
-                      title="現在の管理番号を保持したまま、AIでタイトルのみを再生成します"
+                      title="入力された保管場所・管理番号はそのまま保持し、AIでタイトルのみを再推論します"
                     >
-                      {isRegeneratingTitle ? '再生成中...' : '🔄 タイトル再生成 (管理番号保持)'}
+                      {isRegeneratingTitle ? '再生成中...' : '🔄 タイトル再生成 (保管場所番号を保持)'}
                     </button>
                   )}
                 </div>
@@ -599,14 +610,16 @@ export default function Home() {
                     className="input-field" 
                     value={mngNumber} 
                     onChange={(e) => setMngNumber(e.target.value)} 
-                    style={{ width: '110px', fontWeight: 'bold' }} 
-                    placeholder="管理番号" 
+                    style={{ width: '150px', fontWeight: 'bold' }} 
+                    placeholder="管理番号/棚番" 
+                    title="商品の保管場所・棚番号。画像認識やAI再生成を行っても消去されず固定されます"
                   />
                   <input 
                     className="input-field" 
                     value={draftTitle} 
                     onChange={(e) => setDraftTitle(e.target.value)} 
                     style={{ flex: 1 }} 
+                    placeholder="商品タイトルを入力またはAIで自動生成"
                   />
                 </div>
                 <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
